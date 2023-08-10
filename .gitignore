@@ -47,3 +47,8 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+.outpack/
+archive/
+draft/
+orderly_envir.yml
