@@ -1,4 +1,5 @@
 orderly2::orderly_artefact("Simulation parameters", "sim_params.rds")
+library(MixDiff)
 ## Baseline
 n_groups <- 4
 n_dates <- c(2, 3, 4, 4)
@@ -44,4 +45,4 @@ out <- list(
   index_dates_order = index_dates_order
 )
 
-saveRDS(x = out, "sim_params.rds")
+saveRDS(out, "sim_params.rds")
