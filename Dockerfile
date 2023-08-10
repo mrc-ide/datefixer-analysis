@@ -8,3 +8,7 @@ RUN install2.r --error --skipinstalled \
 RUN installGithub.r \
   mrc-ide/orderly2 \
   MJomaba/MixDiff
+
+RUN mkdir /analysis
+
+CMD R -e "orderly2::orderly_run('sim_params')"
