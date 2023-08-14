@@ -10,5 +10,5 @@ RUN installGithub.r \
   MJomaba/MixDiff
 
 RUN mkdir /analysis
-
+WORKDIR /analysis
 CMD R -e "orderly2::orderly_run('sim_params')"
