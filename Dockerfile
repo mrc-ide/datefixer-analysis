@@ -12,3 +12,4 @@ RUN installGithub.r \
 RUN mkdir /analysis
 WORKDIR /analysis
 CMD R -e "orderly2::orderly_run('sim_params')"
+CMD R -e "orderly2::orderly_run('sim_data_baseline')"

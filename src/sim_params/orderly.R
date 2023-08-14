@@ -4,7 +4,7 @@ library(MixDiff)
 n_groups <- 4
 n_dates <- c(2, 3, 4, 4)
 theta_baseline <- list(
-  prop_missing_date = 0.05,
+  prop_missing_data = 0.05,
   zeta = 0.05,
   mu = list(
     5, c(6, 7), c(8, 9, 10), c(11, 12, 13)
@@ -39,6 +39,7 @@ index_dates_order <- list(
 )
 
 out <- list(
+  n_per_group = n_per_group,
   theta_baseline = theta_baseline,
   range_dates = range_dates,
   index_dates = index_dates,
