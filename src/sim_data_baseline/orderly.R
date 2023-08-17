@@ -26,9 +26,7 @@ augmented <- list(
   D = truth$true_dat, E = observed$E
 )
 saveRDS(observed$obs_dat, "sim_data_baseline.rds")
-saveRDS(
-  augmented, "aug_data_baseline.rds"
-)
+saveRDS(augmented, "aug_data_baseline.rds")
 
 
 
