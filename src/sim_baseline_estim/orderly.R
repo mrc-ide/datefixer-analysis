@@ -39,6 +39,13 @@ hyperparameters <- list(
   mean_mean_delay=100,
   mean_CV_delay=100
 )
+## If a row has only NAs, it can safely be removed
+sim_data_baseline <- lapply(
+  sim_data_baseline, function(x) {
+    drop <- apply(x, 1, function(y) all(is.na(y)), simplify = TRUE)
+    x[!drop, ]
+  }
+)
 
 mcmc_out <- RunMCMC(
   sim_data_baseline,
