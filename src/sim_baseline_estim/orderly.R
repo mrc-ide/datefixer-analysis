@@ -42,13 +42,22 @@ hyperparameters <- list(
   mean_mean_delay=100,
   mean_CV_delay=100
 )
-
-mcmc_out <- lapply(sim_data_baseline, function(x) {
+nsims <- length(sim_data_baseline)
+mcmc_out <- lapply(seq_len(nsims), function(idx) {
+  x <- sim_data_baseline[[idx]]
+  message("Processing ", idx)
+  ## Remove rows with only NAs,
+  x$obs_dat <- lapply(
+    x$obs_dat, function(y) {
+      all_nas <- apply(y, 1, function(row ) all(is.na(row)))
+      y[!all_nas, ]
+    }
+  )
   RunMCMC(
     x$obs_dat,
     mcmc_settings,
     hyperparameters,
-    index_dates
+    index_dates, verbose = TRUE
   )
 })
 
