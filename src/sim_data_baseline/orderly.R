@@ -1,7 +1,10 @@
-orderly2::orderly_artefact("Simulated and Augmented data", c("sim_data_baseline.rds", "aug_data_baseline.rds"))
-orderly2::orderly_dependency(
+library(orderly2)
+orderly_artefact("Simulated Data", c("sim_data_baseline.rds"))
+orderly_dependency(
   "sim_params", "latest", c(sim_params.rds = "sim_params.rds")
 )
+## Number of data sets to simulate
+orderly_parameters(nsims = 1)
 library(MixDiff)
 sim_params <- readRDS("sim_params.rds")
 ## sim_params is a list with the following structure
@@ -11,22 +14,20 @@ sim_params <- readRDS("sim_params.rds")
 ##   index_dates = index_dates,
 ##   index_dates_order = index_dates_order
 ## )
-
-truth <- simul_true_data(
-  sim_params$theta_baseline, sim_params$n_per_group,
-  sim_params$range_dates, sim_params$index_dates
+out <- vector(
+  mode = "list", length = nsims
 )
+for (idx in seq_len(nsims)) {
+  out[[idx]] <- simul_true_data(
+    sim_params$theta_baseline, sim_params$n_per_group,
+    sim_params$range_dates, sim_params$index_dates,
+    simul_error = TRUE,
+    remove_allNA_indiv = TRUE
+  )
+}
 
-observed <- simul_obs_dat(
-  truth$true_dat, sim_params$theta_baseline,
-  sim_params$range_dates
-)
+saveRDS(out, "sim_data_baseline.rds")
 
-augmented <- list(
-  D = truth$true_dat, E = observed$E
-)
-saveRDS(observed$obs_dat, "sim_data_baseline.rds")
-saveRDS(augmented, "aug_data_baseline.rds")
 
 
 

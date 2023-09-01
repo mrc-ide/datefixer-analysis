@@ -11,9 +11,12 @@ orderly_artefact(
   "sim_baseline_estim.rds"
 )
 library(MixDiff)
+
 sim_params <- readRDS("sim_params.rds")
 index_dates <- sim_params$index_dates
 sim_data_baseline <- readRDS("sim_data_baseline.rds")
+
+
 mcmc_settings <- list(
   moves_switch = list(
     D_on = TRUE, E_on = TRUE,
@@ -39,19 +42,14 @@ hyperparameters <- list(
   mean_mean_delay=100,
   mean_CV_delay=100
 )
-## If a row has only NAs, it can safely be removed
-sim_data_baseline <- lapply(
-  sim_data_baseline, function(x) {
-    drop <- apply(x, 1, function(y) all(is.na(y)), simplify = TRUE)
-    x[!drop, ]
-  }
-)
 
-mcmc_out <- RunMCMC(
-  sim_data_baseline,
-  mcmc_settings,
-  hyperparameters,
-  index_dates
-)
+mcmc_out <- lapply(sim_data_baseline, function(x) {
+  RunMCMC(
+    x$obs_dat,
+    mcmc_settings,
+    hyperparameters,
+    index_dates
+  )
+})
 
 saveRDS(mcmc_out, "sim_baseline_estim.rds")
