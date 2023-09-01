@@ -57,7 +57,7 @@ mcmc_out <- lapply(seq_len(nsims), function(idx) {
     x$obs_dat,
     mcmc_settings,
     hyperparameters,
-    index_dates, verbose = TRUE
+    index_dates
   )
 })
 
