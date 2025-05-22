@@ -1,12 +1,17 @@
 library(orderly2)
-orderly_artefact("Simulated Data", c("sim_data_baseline.rds"))
-orderly_dependency(
-  "sim_params", "latest", c(sim_params.rds = "sim_params.rds")
-)
+
 ## Number of data sets to simulate
-orderly_parameters(nsims = 1)
+orderly_parameters(nsims = NULL)
+
+orderly_artefact("Simulated Data", c("sim_data_baseline.rds"))
+
+orderly_dependency("sim_params", "latest", c(sim_params.rds = "sim_params.rds"))
+
+
 library(MixDiff)
+
 sim_params <- readRDS("sim_params.rds")
+
 ## sim_params is a list with the following structure
 ## list(
 ##   theta_baseline = theta_baseline,
@@ -14,6 +19,7 @@ sim_params <- readRDS("sim_params.rds")
 ##   index_dates = index_dates,
 ##   index_dates_order = index_dates_order
 ## )
+
 out <- vector(
   mode = "list", length = nsims
 )
