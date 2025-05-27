@@ -1,5 +1,8 @@
-orderly2::orderly_artefact("Simulation parameters", "sim_params.rds")
+orderly2::orderly_artefact(description = "Simulation parameters",
+                           files = "sim_params.rds")
+
 library(MixDiff)
+
 ## Baseline
 n_groups <- 4
 n_dates <- c(2, 3, 4, 4)
@@ -15,12 +18,14 @@ theta_baseline <- list(
 )
 
 n_per_group <- rep(100, n_groups)
+
 range_dates <- date_to_int(
   c(
     as.Date("01/01/2014", "%d/%m/%Y"),
     as.Date("01/01/2015", "%d/%m/%Y")
   )
 )
+
 index_dates <- list(
   matrix(c(1, 2), nrow = 2),
   cbind(c(1, 2), c(1, 3)),
@@ -31,6 +36,7 @@ index_dates <- list(
     c(1, 2), c(2, 3), c(1, 4)
   )
 )
+
 index_dates_order <- list(
   matrix(c(1, 2), nrow=2),
   cbind(c(1, 2), c(1, 3)),
