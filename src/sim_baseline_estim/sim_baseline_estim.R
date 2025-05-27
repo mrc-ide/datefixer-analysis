@@ -32,9 +32,12 @@ mcmc_settings <- list(
   # moves_switch: List of booleans stating whether each parameter/augmented data
   # should be moved in the procedure or not.
   moves_switch = list(
-    D_on = TRUE, E_on = TRUE,
-    swapE_on = TRUE, mu_on = TRUE,
-    CV_on = TRUE, zeta_on = TRUE
+    D_on = TRUE, # augmented dates (latent true dates)
+    E_on = TRUE, # error indicators (-1, 0, 1)
+    swapE_on = TRUE, # swaps error indicators - explore alternative errors
+    mu_on = TRUE, # mean of each delay distribution
+    CV_on = TRUE, # cv of each delay
+    zeta_on = TRUE # probability of error
   ),
   # moves_options: 
   moves_options = list(
@@ -72,13 +75,12 @@ mcmc_settings <- list(
 # Hyperparameters
 
 hyperparameters <- list(
-  # scalar giving the first shape parameter for the beta prior used for zeta
+  # scalars giving the first and second shape parameters for the beta prior
+  # used for zeta
   shape1_prob_error = 3,
-  # scalar giving the second shape parameter for the beta prior used for zeta
   shape2_prob_error = 12,
-  # scalar giving the mean of the exponential prior used for mu
+  # scalars giving the mean of the exponential prior used for mu and CV
   mean_mean_delay = 100,
-  # scalar giving the mean of the exponential prior used for CV
   mean_CV_delay = 100
   )
 
