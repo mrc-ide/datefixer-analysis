@@ -11,8 +11,8 @@ orderly_dependency(
   )
 
 orderly_artefact(
-  "MCMC output for baseline sim",
-  "sim_baseline_estim.rds"
+  description = "MCMC output for baseline sim",
+  files = "sim_baseline_estim.rds"
   )
 
 library(MixDiff)
