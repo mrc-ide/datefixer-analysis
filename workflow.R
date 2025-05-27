@@ -7,4 +7,4 @@ orderly_run("sim_params")
 orderly_run("sim_data_baseline", parameters = list(nsims = 1))
 
 # MCMC output for baseline estim
-orderly_run("sim_baseline_estim")
+orderly_run("sim_estim_baseline")

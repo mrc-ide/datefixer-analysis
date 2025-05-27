@@ -12,7 +12,7 @@ orderly_dependency(
 
 orderly_artefact(
   description = "MCMC output for baseline sim",
-  files = "sim_baseline_estim.rds"
+  files = "sim_estim_baseline.rds"
   )
 
 library(MixDiff)
@@ -112,4 +112,4 @@ mcmc_out <- lapply(seq_len(nsims), function(idx) {
   )
 })
 
-saveRDS(mcmc_out, "sim_baseline_estim.rds")
+saveRDS(mcmc_out, "sim_estim_baseline.rds")
