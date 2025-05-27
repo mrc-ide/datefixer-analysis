@@ -1,9 +1,10 @@
 library(orderly2)
 
 ## Number of data sets to simulate
-orderly_parameters(nsims = NULL)
+pars <- orderly_parameters(nsims = NULL)
+list2env(pars, environment())
 
-orderly_artefact("Simulated Data", c("sim_data_baseline.rds"))
+orderly_artefact(description = "Simulated Data", files = c("sim_data_baseline.rds"))
 
 orderly_dependency("sim_params", "latest", c(sim_params.rds = "sim_params.rds"))
 
