@@ -2,7 +2,6 @@ library(orderly2)
 
 ## Number of data sets to simulate
 pars <- orderly_parameters(nsims = NULL)
-list2env(pars, environment())
 
 orderly_artefact(description = "Simulated Data", files = c("sim_data_baseline.rds"))
 
