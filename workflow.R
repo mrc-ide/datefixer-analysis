@@ -11,6 +11,7 @@ orderly_run("sim_estim", parameters = list(scenario = c("baseline"))) # done - 2
 
 orderly_run("sim_estim", parameters = list(scenario = c("low_missingness"))) # done - 20250609-071748-5e8c60f2
 
+# check for NAs
 orderly_run("sim_estim", parameters = list(scenario = c("very_small_sample"))) # ISSUE - just stops for no reason
 orderly_run("sim_estim", parameters = list(scenario = c("small_sample")))
 orderly_run("sim_estim", parameters = list(scenario = c("moderate_sample"))) # done - 20250608-183314-5a94d6f0
@@ -33,7 +34,7 @@ orderly2::orderly_location_push(c("20250609-071748-5e8c60f2",
                                   "20250609-153641-a4c6f89f",
                                   "20250609-212221-141df17c"), "personal_onedrive")
 # on other device:
-# orderly_location_fetch_metadata("personal_onedrive)
+# orderly_location_fetch_metadata("personal_onedrive")
 # orderly_location_pull("<id>") or orderly_location_pull(expr = NULL)
 
 # running in scenario batches
@@ -46,3 +47,9 @@ for (s in scenarios) {
   orderly_run("sim_estim", parameters = list(scenario = s))
 }
 
+
+## Plan for across simulation summaries
+# Mean bias (posterior mean - true value)
+# Coverage (prop of simulations where true value falls within the 50% CrI and 95% CrI)
+# RMSE (sqrt((mean-true)^2))
+# Average CrI width
