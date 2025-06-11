@@ -32,6 +32,7 @@ orderly2::orderly_location_push(c("20250609-071748-5e8c60f2",
                                   "20250609-124217-eb8f433f",
                                   "20250609-153641-a4c6f89f",
                                   "20250609-212221-141df17c"), "personal_onedrive")
+orderly2::orderly_location_push("20250611-094732-dc3580f6", "personal_onedrive")
 # on other device:
 # orderly_location_fetch_metadata("personal_onedrive)
 # orderly_location_pull("<id>") or orderly_location_pull(expr = NULL)
