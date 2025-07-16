@@ -16,7 +16,7 @@ orderly_artefact(description = "Simulated Data", files = "sim_data.rds")
 all_params <- readRDS("sim_params.rds")
 
 # Taken DiscrGamma function from MixDiff/R/LikelihoodPrior.R
-DiscrGamma <- function (k, mu, CV = NULL, sigma = mu*CV, log=TRUE) 
+DiscrGamma <- function (k, mu, CV = NULL, sigma = mu*CV, log = TRUE) 
 {
   if (!is.null(CV)) {
     if(CV < 0)
@@ -101,7 +101,7 @@ discr_gamma_sample <- function(n, mu, CV) {
   k_max <- ceiling(qgamma(0.999, shape = shape, rate = rate))
   ks <- 0:k_max
   # compute probabilities using function taken from LikelihoodPrior (above):
-  probs <- pmax(0, exp(DiscrGamma(ks, mu, CV, log = TRUE)))
+  probs <- pmax(0, DiscrGamma(ks, mu, CV, log = FALSE))
   probs <- probs / sum(probs)
   # sample ks using probabilities:
   sample(ks, size = n, replace = TRUE, prob = probs)
