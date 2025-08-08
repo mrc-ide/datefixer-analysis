@@ -5,15 +5,22 @@ library(MixDiff)
 
 #plan(multisession, workers = parallel::detectCores() - 1)
 
+pars <- orderly_parameters(scenario = NULL)
+#pars <- orderly_parameters(scenario = NULL, missing_type = "all")
+
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
+
+# orderly_dependency(
+#   "sim_data", paste0("latest(parameter:missing_type == '", missing_type, "')"),
+#   files = "sim_data.rds"
+# )
 
 orderly_artefact(
   description = "MCMC outputs for simulation scenarios",
   files = "sim_estim.rds"
   )
 
-pars <- orderly_parameters(scenario = NULL)
 selected_scenario <- scenario
 
 # Read in dependencies --------------------------------------------------------
