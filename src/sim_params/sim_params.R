@@ -32,6 +32,19 @@ scenarios <- bind_rows(
     prop_missing = 0.05
   ),
   baseline %>% mutate(
+    scenario_id = "no_missing", # sanity check
+    prop_missing = 0
+  ),
+  baseline %>% mutate(
+    scenario_id = "no_error", # sanity check
+    zeta = 0
+  ),
+  baseline %>% mutate(
+    scenario_id = "no_error_no_missing", # sanity check
+    zeta = 0,
+    prop_missing = 0
+  ),
+  baseline %>% mutate(
     scenario_id = "low_error",
     zeta = 0.02
   ),
