@@ -3,59 +3,48 @@
 build_sim_params <- function(
     scenario_id,
     n_per_group = rep(100, 4),
-    mu_scale = 1,
+    mean_scale = 1,
     cv_scale = 1,
-    delay_distribution = "gamma",
+    delay_dist = "gamma",
     prop_missing_data = 0.2,
-    zeta = 0.05,
-    error_model = "typo"
+    prob_error = 0.05,
+    error_model = "naive"
 ) {
   
-  n_groups <- 4
-  n_dates <- c(2, 3, 4, 4)
+  error_params <- list(prop_missing_data = prop_missing_data,
+                       prob_error = prob_error,
+                       error_model = error_model)
   
-  mu_baseline <- list(5, c(6, 7), c(8, 9, 10), c(11, 12, 13))
-  cv_baseline <- list(0.5, c(0.5, 0.5), c(0.5, 0.5, 0.5), c(0.5, 0.5, 0.5))
+  date_range <- as.integer(as.Date(c("2014-01-01", "2015-01-01")))
   
-  mu_scaled <- lapply(mu_baseline, function(x) x * mu_scale)
-  cv_scaled <- lapply(cv_baseline, function(x) x * cv_scale)
-  
-  theta <- list(
-    prop_missing_data = prop_missing_data,
-    zeta = zeta,
-    mu = mu_scaled,
-    CV = cv_scaled
+  delay_map <- data.frame(
+    from = c("onset", "onset", "onset",
+             "hospitalisation", "onset", "hospitalisation"),
+    to = c("report", "death", "hospitalisation",
+           "discharge", "hospitalisation", "death"),
+    group = I(list(1:4, 2, 3, 3, 4, 4))
   )
   
-  range_dates <- date_to_int(
-    c(
-      as.Date("01/01/2014", "%d/%m/%Y"),
-      as.Date("01/01/2015", "%d/%m/%Y")
-    )
+  delay_params <- data.frame(
+    group = c(1:4, 2, 3, 3, 4, 4),
+    from = c("onset", "onset", "onset", "onset", "onset", "onset",
+             "hospitalisation", "onset", "hospitalisation"),
+    to = c("report", "report", "report", "report", "death", "hospitalisation",
+           "discharge", "hospitalisation", "death"),
+    delay_dist = delay_dist,
+    delay_mean = c(5, 6, 7, 8, 9, 10, 11, 12, 13),
+    delay_cv = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
   )
   
-  index_dates <- list(
-    matrix(c(1, 2), nrow = 2),
-    cbind(c(1, 2), c(1, 3)),
-    cbind(c(1, 2), c(2, 3),c(1, 4)),
-    cbind(c(1, 2), c(2, 3), c(1, 4))
-  )
-  
-  index_dates_order <- list(
-    matrix(c(1, 2), nrow = 2),
-    cbind(c(1, 2), c(1, 3)),
-    cbind(c(1, 2), c(2, 3), c(1, 3), c(1, 4)),
-    cbind(c(1, 2), c(2, 3), c(1, 3), c(1, 4))
-  )
+  delay_params$delay_mean <- delay_params$delay_mean * mean_scale
+  delay_params$delay_cv <- delay_params$delay_cv * cv_scale
   
   list(
     scenario_id = scenario_id,
     n_per_group = n_per_group,
-    delay_distribution = delay_distribution,
-    error_model = error_model,
-    theta = theta,
-    range_dates = range_dates,
-    index_dates = index_dates,
-    index_dates_order = index_dates_order
+    delay_map = delay_map,
+    delay_params = delay_params,
+    error_params = error_params,
+    date_range = date_range
   )
 }

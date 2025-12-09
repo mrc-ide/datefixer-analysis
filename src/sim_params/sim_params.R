@@ -5,7 +5,7 @@
 orderly_artefact(description = "Simulation parameters for all scenarios",
                  files = "sim_params.rds")
 
-library(MixDiff)
+library(datefixer)
 library(tibble)
 library(dplyr)
 library(purrr)
@@ -16,12 +16,12 @@ source("utils.R") # build_sim_params()
 baseline <- tibble(
   scenario_id = "baseline",
   group_size = 100,
-  mu_scale = 1,
+  mean_scale = 1,
   cv_scale = 1,
   delay_dist = "gamma",
   prop_missing = 0.2,
-  zeta = 0.05, # error rate
-  error_model = "typo"
+  prob_error = 0.05,
+  error_model = "naive"
 )
 
 # Create other simulation scenarios by modifying the baseline
@@ -37,20 +37,20 @@ scenarios <- bind_rows(
   ),
   baseline %>% mutate(
     scenario_id = "no_error", # sanity check
-    zeta = 0
+    prob_error = 0
   ),
   baseline %>% mutate(
     scenario_id = "no_error_no_missing", # sanity check
-    zeta = 0,
+    prob_error = 0,
     prop_missing = 0
   ),
   baseline %>% mutate(
     scenario_id = "low_error",
-    zeta = 0.02
+    prob_error = 0.02
   ),
   baseline %>% mutate(
     scenario_id = "high_error",
-    zeta = 0.2
+    prob_error = 0.2
   ),
   # baseline %>% mutate(
   #   scenario_id = "lognormal_delays",
@@ -78,11 +78,11 @@ scenarios <- bind_rows(
   ),
   baseline %>% mutate(
     scenario_id = "long_delays",
-    mu_scale = 2
+    mean_scale = 2
   ),
   baseline %>% mutate(
     scenario_id = "short_delays",
-    mu_scale = 0.5
+    mean_scale = 0.5
   ),
   baseline %>% mutate(
     scenario_id = "high_variability",
@@ -102,11 +102,11 @@ params_list <- map(
     build_sim_params(
       scenario_id  = row$scenario_id,
       n_per_group  = rep(row$group_size, 4),
-      mu_scale     = row$mu_scale,
+      mean_scale   = row$mean_scale,
       cv_scale     = row$cv_scale,
       delay_dist   = row$delay_dist,
       prop_missing = row$prop_missing,
-      zeta         = row$zeta,
+      prob_error   = row$prob_error,
       error_model  = row$error_model
     )
   }
