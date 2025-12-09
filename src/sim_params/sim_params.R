@@ -2,8 +2,8 @@
 
 # TO DO: set up lognormal_delays, weibull_delays and other error model scenarios
 
-orderly2::orderly_artefact(description = "Simulation parameters for all scenarios",
-                           files = "sim_params.rds")
+orderly_artefact(description = "Simulation parameters for all scenarios",
+                 files = "sim_params.rds")
 
 library(MixDiff)
 library(tibble)

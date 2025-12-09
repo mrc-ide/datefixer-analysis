@@ -1,6 +1,5 @@
-library(orderly2)
-# Remember to have latest MixDiff installed
-#renv::install("mrc-ide/MixDiff@revival")
+library(orderly)
+#renv::install("mrc-ide/datefixer")
 
 # Create a named list containing the simulation parameters for all scenarios
 orderly_run("sim_params") # 20250606-125859-77841c4b
@@ -58,19 +57,19 @@ orderly_run("sim_estim", parameters = list(scenario = c("long_delays"))) # done 
 orderly_run("sim_estim", parameters = list(scenario = c("short_delays")))
 
 # Push outputs to onedrive
-orderly2::orderly_location_push("20250606-125859-77841c4b", "personal_onedrive") # sim_params
-#orderly2::orderly_location_push("20250606-160753-98a0b168", "personal_onedrive") # sim_data
-orderly2::orderly_location_push("20250704-145813-8ad87966", "personal_onedrive") # sim_data - changed discretisation
-orderly2::orderly_location_push("20250608-094618-e1df9d80", "personal_onedrive") # sim_estim: baseline
-orderly2::orderly_location_push(c("20250609-071748-5e8c60f2",
+orderly_location_push("20250606-125859-77841c4b", "personal_onedrive") # sim_params
+#orderly_location_push("20250606-160753-98a0b168", "personal_onedrive") # sim_data
+orderly_location_push("20250704-145813-8ad87966", "personal_onedrive") # sim_data - changed discretisation
+orderly_location_push("20250608-094618-e1df9d80", "personal_onedrive") # sim_estim: baseline
+orderly_location_push(c("20250609-071748-5e8c60f2",
                                   "20250608-183314-5a94d6f0",
                                   "20250608-200937-b66ddee7",
                                   "20250609-124217-eb8f433f",
                                   "20250609-153641-a4c6f89f",
                                   "20250609-212221-141df17c"), "personal_onedrive")
-orderly2::orderly_location_push("20250611-094732-dc3580f6", "personal_onedrive")
-orderly2::orderly_location_push("20250704-145909-b81d711a", "personal_onedrive") # baseline using new sim_data
-orderly2::orderly_location_push("20250704-172828-0d743aed", "personal_onedrive") # moderate sample using new sim_data
+orderly_location_push("20250611-094732-dc3580f6", "personal_onedrive")
+orderly_location_push("20250704-145909-b81d711a", "personal_onedrive") # baseline using new sim_data
+orderly_location_push("20250704-172828-0d743aed", "personal_onedrive") # moderate sample using new sim_data
 # on other device:
 # orderly_location_fetch_metadata("personal_onedrive")
 # orderly_location_pull("<id>") or orderly_location_pull(expr = NULL)
