@@ -2,7 +2,7 @@
 
 # Summary of sample scenarios
 
-library(orderly2)
+library(orderly)
 library(dplyr)
 library(patchwork)
 library(purrr)
