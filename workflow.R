@@ -1,5 +1,5 @@
 library(orderly)
-#renv::install("mrc-ide/datefixer")
+#renv::install("mrc-ide/datefixer@export_functions")
 #renv::install("mrc-ide/monty@mrc-6769")
 
 # Create a named list containing the simulation parameters for all scenarios
