@@ -1,5 +1,6 @@
 library(orderly)
 library(datefixer)
+library(parallel)
 
 pars <- orderly_parameters(scenario = NULL)
 
@@ -48,9 +49,10 @@ for (scenario in scenario_list) {
   sim_param <- sim_params[[scenario]]
   delay_map <- sim_param$delay_map
 
-mcmc_samples <- lapply(seq_along(sim_data_list), function(sim) {
+mcmc_samples <- parLapply(NULL, seq_along(sim_data_list), function(sim) {
+  
   x <- sim_data_list[[sim]]
-  message("Processing sim ", sim, " for scenario: ", scenario)
+  #message("Processing sim ", sim, " for scenario: ", scenario)
 
   model <- datefixer_model(x$observed_data, delay_map, hyperparameters, control)
   mcmc_run(model, sampler)
