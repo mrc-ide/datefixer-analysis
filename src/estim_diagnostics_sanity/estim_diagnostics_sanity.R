@@ -11,12 +11,6 @@ library(ggplot2)
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
 
-# need to add very small and small sample when I've worked out the issue
-# orderly_dependency("sim_estim",
-#                    "latest(parameter:scenario == 'baseline')",
-#                    c("sim_estim_baseline.rds" = "sim_estim.rds"))
-
-
 orderly_dependency("sim_estim",
                    "latest(parameter:scenario == 'baseline')",
                    c("sim_estim_baseline.rds" = "sim_estim.rds"))
@@ -24,30 +18,39 @@ orderly_dependency("sim_estim",
 orderly_dependency("sim_estim",
                    "latest(parameter:scenario == 'no_error')",
                    c("sim_estim_no_error.rds" = "sim_estim.rds"))
+
 orderly_dependency("sim_estim",
                    "latest(parameter:scenario == 'no_missing')",
                    c("sim_estim_no_missing.rds" = "sim_estim.rds"))
+
 orderly_dependency("sim_estim",
                    "latest(parameter:scenario == 'no_error_no_missing')",
-                   c("sim_estim_no_error_no_missing.rds" = "sim_estim.rds")) #"20250717-062514-ae410bfc"
+                   c("sim_estim_no_error_no_missing.rds" = "sim_estim.rds"))
 
-orderly_artefact(
-  "trace_plots", "figures/trace_plots.pdf"
-)
+orderly_artefact(files = c("figures/trace_plot.pdf",
+                           "figures/bias_plot.pdf",
+                           "figures/bias_plot_empirical.pdf",
+                           "figures/coverage_plot.pdf",
+                           "figures/sim_summaries.rds",
+                           "figures/agg_summaries.rds"),
+                 description = "Analysis outputs")
 
 dir.create("figures")
-source("utils.R")
+#source("utils.R")
 
 # Read in dependencies
 sim_params <- readRDS("sim_params.rds")
 sim_data <- readRDS("sim_data.rds")
 
-sim_estim_no_error   <- readRDS("sim_estim_no_error.rds")
-sim_estim_no_error_no_miss <- readRDS("sim_estim_no_error_no_missing.rds")
-sim_estim_no_miss   <- readRDS("sim_estim_no_missing.rds")
 sim_estim_baseline   <- readRDS("sim_estim_baseline.rds")
+sim_estim_no_error   <- readRDS("sim_estim_no_error.rds")
+sim_estim_no_missing <- readRDS("sim_estim_no_missing.rds")
+sim_estim_no_error_no_miss <- readRDS("sim_estim_no_error_no_missing.rds")
 
-sim_estim <- c(sim_estim_no_error, sim_estim_no_error_no_miss, sim_estim_no_miss, sim_estim_baseline)
+sim_estim <- c(sim_estim_baseline,
+               sim_estim_no_error,
+               sim_estim_no_missing,
+               sim_estim_no_error_no_miss)
 
 ## Plan for across simulation summaries --------------------------------------
 # Mean bias (posterior mean - true value)
@@ -56,362 +59,343 @@ sim_estim <- c(sim_estim_no_error, sim_estim_no_error_no_miss, sim_estim_no_miss
 # Average CrI width
 
 
-# Define keys for group, delay and date --------------------------------------
+# Map the estimated delays ---------------------------------------------------
+delay_mapping <- tribble(
+  ~param_idx, ~delay_from,         ~delay_to,            ~groups,
+  1,          "onset",             "report",             "1,2,3,4",
+  2,          "onset",             "death",              "2",
+  3,          "onset",             "hospitalisation",    "3",
+  4,          "hospitalisation",   "discharge",          "3",
+  5,          "onset",             "hospitalisation",    "4",
+  6,          "hospitalisation",   "death",              "4"
+) %>%
+  mutate(group_list = strsplit(groups, ",")) %>%
+  tidyr::unnest(group_list) %>%
+  mutate(group = paste0("Group ", trimws(group_list))) %>%
+  select(-group_list, -groups)
 
-group_key <- tibble(
-  group_code  = paste0("group_", 1:4),
-  group_label = c("Community-alive",
-                  "Community-dead",
-                  "Hospitalised-alive",
-                  "Hospitalised-dead")
-)
-
-delay_key <- tribble(
-  ~group_label,           ~delay_index, ~delay_label,
-  "Community-alive",      1,           "Onset-to-report",
-  "Community-dead",       1,           "Onset-to-report",
-  "Community-dead",       2,           "Onset-to-death",
-  "Hospitalised-alive",   1,           "Onset-to-hospitalisation",
-  "Hospitalised-alive",   2,           "Hospitalisation-to-discharge",
-  "Hospitalised-alive",   3,           "Onset-to-report",
-  "Hospitalised-dead",    1,           "Onset-to-hospitalisation",
-  "Hospitalised-dead",    2,           "Hospitalisation-to-death",
-  "Hospitalised-dead",    3,           "Onset-to-report"
-)
-
-date_key <- tribble(
-  ~group_label,           ~date_index, ~date_label,
-  "Community-alive",      1,           "Onset",
-  "Community-alive",      2,           "Report",
-  "Community-dead",       1,           "Onset",
-  "Community-dead",       2,           "Report",
-  "Community-dead",       3,           "Death",
-  "Hospitalised-alive",   1,           "Onset",
-  "Hospitalised-alive",   2,           "Hospitalisation",
-  "Hospitalised-alive",   3,           "Discharged",
-  "Hospitalised-alive",   4,           "Report",
-  "Hospitalised-dead",    1,           "Onset",
-  "Hospitalised-dead",    2,           "Hospitalisation",
-  "Hospitalised-dead",    3,           "Death",
-  "Hospitalised-dead",    4,           "Report"
-)
-
-# Extract mu, cv and zeta ----------------------------------------------------
-scenario_names <- names(sim_estim)
-
-all_res <- map(scenario_names, function(scenario) {
-  message("Extracting results for scenario: ", scenario)
+# Extract true parameter values ----------------------------------------------
+true_params <- map_dfr(names(sim_params), function(scenario_name) {
+  params <- sim_params[[scenario_name]]
   
-  scenario_sims <- sim_estim[[scenario]]
-  sim_theta <- sim_params[[scenario]]$theta
-  true_data <- sim_data[[scenario]] |> map("true_dat")
-  index_dates <- sim_params[[scenario]]$index_dates
+  # Match delay_params rows to the estimated delays
+  delay_params <- params$delay_params
+
+  # For onset to report can take the first value (now they're all the same)
+  true_vals <- tibble(
+    scenario = scenario_name,
+    param_idx = c(1, 1, 1, 1, 2, 3, 4, 5, 6),
+    group = c("Group 1", "Group 2", "Group 3", "Group 4",
+              "Group 2", "Group 3", "Group 3", "Group 4", "Group 4"),
+    true_mean = delay_params$delay_mean,
+    true_cv =  delay_params$delay_cv,
+  ) %>%
+    left_join(delay_mapping, by = c("param_idx", "group"))
   
-  map2(scenario_sims, true_data, function(sim, sim_dat) {
-    extract_est_df(
-      MCMCres    = sim,
-      theta_true = sim_theta,
-      true_dat   = sim_dat,
-      index_dates = index_dates
+  true_vals
+})
+
+# Extract empirical mean/CV from simulated true data ------------------------
+
+empirical_params <- map_dfr(names(sim_data), function(scenario_name) {
+  scenario_sims <- sim_data[[scenario_name]]
+  
+  # For each simulation, calculate empirical delays
+  map_dfr(seq_along(scenario_sims), function(sim_idx) {
+    true_data <- scenario_sims[[sim_idx]]$true_data
+    
+    # Calculate delays for each type
+    delays <- true_data %>%
+      mutate(
+        onset_report = report - onset,
+        onset_death = death - onset,
+        onset_hosp = hospitalisation - onset,
+        hosp_discharge = discharge - hospitalisation,
+        hosp_death = death - hospitalisation
+      )
+    
+    # Empirical means and CVs for each delay type
+    tibble(
+      scenario = scenario_name,
+      simulation = sim_idx,
+      param_idx = c(1, 1, 1, 1, 2, 3, 4, 5, 6),
+      group = c("Group 1", "Group 2", "Group 3", "Group 4",
+                "Group 2", "Group 3", "Group 3", "Group 4", "Group 4"),
+      empirical_mean = c(
+        mean(delays$onset_report[delays$group == 1]),
+        mean(delays$onset_report[delays$group == 2]),
+        mean(delays$onset_report[delays$group == 3]),
+        mean(delays$onset_report[delays$group == 4]),
+        mean(delays$onset_death[delays$group == 2]),
+        mean(delays$onset_hosp[delays$group == 3]),
+        mean(delays$hosp_discharge[delays$group == 3]),
+        mean(delays$onset_hosp[delays$group == 4]),
+        mean(delays$hosp_death[delays$group == 4])
+      ),
+      empirical_cv = c(
+        sd(delays$onset_report[delays$group == 1]) / mean(delays$onset_report[delays$group == 1]),
+        sd(delays$onset_report[delays$group == 2]) / mean(delays$onset_report[delays$group == 2]),
+        sd(delays$onset_report[delays$group == 3]) / mean(delays$onset_report[delays$group == 3]),
+        sd(delays$onset_report[delays$group == 4]) / mean(delays$onset_report[delays$group == 4]),
+        sd(delays$onset_death[delays$group == 2]) / mean(delays$onset_death[delays$group == 2]),
+        sd(delays$onset_hosp[delays$group == 3]) / mean(delays$onset_hosp[delays$group == 3]),
+        sd(delays$hosp_discharge[delays$group == 3]) / mean(delays$hosp_discharge[delays$group == 3]),
+        sd(delays$onset_hosp[delays$group == 4]) / mean(delays$onset_hosp[delays$group == 4]),
+        sd(delays$hosp_death[delays$group == 4]) / mean(delays$hosp_death[delays$group == 4])
+      )
     )
   })
 }) %>%
-  set_names(scenario_names)
-
-# all_draws contains each iteration of each simulation
-# (9 delays x 100 sims x 45 iter x n scenarios)
-
-all_draws <- imap(all_res, function(sim_list, scenario) {
-  imap(sim_list, function(res, sim_idx) {
-    res$draws %>%
-      mutate(
-        scenario = scenario,
-        simulation = sim_idx
-      )
-  }) %>% list_rbind()
-}) %>% list_rbind()
+  left_join(delay_mapping, by = c("param_idx", "group"))
 
 
-# Add labels using keys 
-draws_with_labels <- all_draws %>%
-  left_join(group_key,  by = c("group" = "group_code")) %>%
-  left_join(delay_key,  by = c("group_label", "delay_index")) %>%
-  select(
-    scenario,
-    group_label,
-    delay_label,
-    simulation,
-    everything()
-  ) %>%
-  select(-group, -delay_index) %>%
-  rename(
-    group = group_label,
-    delay = delay_label
-  )
+# Extract MCMC draws ---------------------------------------------------------
 
-test <- draws_with_labels %>%
-  group_by(group, scenario, delay, iteration) %>%
-  summarise(mean_mu = mean(mu, na.rm = TRUE))
+extract_draws <- function(mcmc_result, scenario_name, sim_idx) {
+  # mcmc_result is a monty_samples object
+  pars <- mcmc_result$pars  # [n_params, n_iterations, n_chains]
 
-mu_true_df <- imap_dfr(sim_params, function(params, scenario_name) {
-  mu_list <- params$theta$mu
-  n_groups <- length(mu_list)
+  n_iter <- dim(pars)[2]
+  n_chains <- dim(pars)[3]
   
-  map_dfr(seq_len(n_groups), function(g) {
-    n_delays <- length(mu_list[[g]])
+  # Extract mean and CV parameters
+  draws_list <- list()
+  
+  for (i in 1:6) {
+    mean_name <- paste0("mean_delay", i)
+    cv_name <- paste0("cv_delay", i)
     
-    tibble(
+    mean_draws <- as.vector(pars[mean_name, , ])
+    cv_draws <- as.vector(pars[cv_name, , ])
+    
+    draws_list[[i]] <- tibble(
       scenario = scenario_name,
-      group = group_key$group_label[g],
-      delay_index = seq_len(n_delays),
-      mu_true = mu_list[[g]]
-    ) %>%
-      left_join(delay_key, by = c("group" = "group_label", "delay_index")) %>%
-      rename(delay = delay_label)
+      simulation = sim_idx,
+      param_idx = i,
+      iteration = rep(1:n_iter, n_chains),
+      chain = rep(1:n_chains, each = n_iter),
+      mean_delay = mean_draws,
+      cv_delay = cv_draws
+    )
+  }
+  
+  bind_rows(draws_list)
+}
+
+# Extract all draws
+all_draws <- map_dfr(names(sim_estim), function(scenario_name) {
+  scenario_sims <- sim_estim[[scenario_name]]
+  
+  map_dfr(seq_along(scenario_sims), function(sim_idx) {
+    extract_draws(scenario_sims[[sim_idx]], scenario_name, sim_idx)
   })
 })
 
+# Add delay labels
+all_draws <- all_draws %>%
+  left_join(delay_mapping, by = c("param_idx")) %>%
+  mutate(delay_label = glue::glue("{delay_from} to {delay_to}"))
 
-# Compare to true mean delay (ground truth) ----------------------------------
-test_with_true <- test %>%
-  left_join(mu_true_df, by = c("scenario", "group", "delay"))
+# Calculate posterior summaries per simulation -------------------------------
 
-trace_plot_sanity <- ggplot(
-  test_with_true, aes(x = iteration, y = mean_mu, colour = as.factor(delay))
-  ) +
-  geom_line() +
-  geom_hline(aes(yintercept = mu_true, linetype = "True value", colour = as.factor(delay)), lty = 2) +
-  facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
-  ylab("Mean Mu") +
-  labs(colour = "Delay")
-
-ggsave("figures/trace_plot_sanity.pdf", trace_plot_sanity, width = 11, height = 7)
-
-
-# Compare to mean delay of simulated true data (sample truth) ----------------
-mu_empirical_df <- imap_dfr(all_res, function(sim_list, scenario_name) {
-  map_dfr(sim_list, function(res) {
-    res$summary %>%
-      select(group, delay_index, mu_empirical) %>%
-      distinct()
-  }) %>%
-    group_by(group, delay_index) %>%
-    summarise(mu_empirical = mean(mu_empirical, na.rm = TRUE), .groups = "drop") %>%
-    mutate(scenario = scenario_name) %>%
-    left_join(group_key, by = c("group" = "group_code")) %>%
-    left_join(delay_key, by = c("group_label", "delay_index")) %>%
-    transmute(
-      scenario,
-      group = group_label,
-      delay = delay_label,
-      mu_empirical
-    )
-})
-
-test_with_emp <- test %>%
-  left_join(mu_empirical_df, by = c("scenario", "group", "delay"))
-
-trace_plot_empirical <- ggplot(test_with_emp,
-                               aes(x = iteration, y = mean_mu,
-                                   colour = as.factor(delay))) +
-  geom_line() +
-  geom_hline(aes(yintercept = mu_empirical, linetype = "Empirical value",
-                 colour = as.factor(delay)), lty = 2) +
-  facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
-  ylab("Mean Mu") +
-  labs(colour = "Delay")
-
-trace_plot_empirical
-
-ggsave("figures/trace_plot_empirical.pdf", trace_plot_empirical, width = 11, height = 7)
-
-# Per-simulation summary -----------------------------------------------------
-
-# For each of the 100 sims get the mean, quantiles, coverage, bias, rmse and
-# CrI width for each delay (9 delays x 100 sims x n scenarios)
-
-sims_summary <- imap(all_res, function(sim_list, scenario) {
-  imap(sim_list, function(res, sim_idx) {
-    res$summary %>%
-      mutate(
-        scenario = scenario,
-        simulation = sim_idx
-      )
-  }) %>% list_rbind()
-}) %>% list_rbind()
-
-summary_with_labels <- sims_summary %>%
-  left_join(group_key,  by = c("group" = "group_code")) %>%
-  left_join(delay_key,  by = c("group_label", "delay_index")) %>%
-  select(
-    scenario,
-    group_label,
-    delay_label,
-    simulation,
-    everything()
-  ) %>%
-  select(-group, -delay_index) %>%
-  rename(
-    group = group_label,
-    delay = delay_label
-  )
-
-# Across-simulations summary -------------------------------------------------  
-agg_sims_summary <- summary_with_labels %>%
-  mutate(
-    scenario = factor(scenario, levels =
-                        c("baseline", "no_error", "no_missing", "no_error_no_missing"))
-  ) %>%
-  group_by(scenario, group, delay) %>%
+sim_summaries <- all_draws %>%
+  group_by(scenario, simulation, param_idx, delay_label, delay_from, delay_to, group) %>%
   summarise(
-    # bias to true params
-    mu_mean_bias = mean(mu_bias, na.rm = TRUE),
-    mu_sd_bias = sd(mu_bias, na.rm = TRUE),
-    cv_mean_bias = mean(cv_bias, na.rm = TRUE),
-    cv_sd_bias = sd(cv_bias, na.rm = TRUE),
-    # bias to simulated delays
-    mu_emp_bias  = mean(mu_bias_emp, na.rm = TRUE),
-    mu_emp_sd    = sd(mu_bias_emp, na.rm = TRUE),
-    cv_emp_bias  = mean(cv_bias_emp, na.rm = TRUE),
-    cv_emp_sd    = sd(cv_bias_emp, na.rm = TRUE),
-    # others
-    mu_rmse = sqrt(mean(mu_bias^2, na.rm = TRUE)),
-    cv_rmse = sqrt(mean(cv_bias^2, na.rm = TRUE)),
-    mu_95cov = mean(mu_cov95, na.rm = TRUE),
-    cv_95cov = mean(cv_cov95, na.rm = TRUE),
-    mu_50cov = mean(mu_cov50, na.rm = TRUE),
-    cv_50cov = mean(cv_cov50, na.rm = TRUE),
-    mu_width95 = mean(mu_width95, na.rm = TRUE),
-    mu_width50 = mean(mu_width50, na.rm = TRUE),
-    cv_width95 = mean(cv_width95, na.rm = TRUE),
-    cv_width50 = mean(cv_width50, na.rm = TRUE),
-    .groups  = "drop"
+    post_mean_mean = mean(mean_delay),
+    post_mean_cv = mean(cv_delay),
+    post_q025_mean = quantile(mean_delay, 0.025),
+    post_q975_mean = quantile(mean_delay, 0.975),
+    post_q25_mean = quantile(mean_delay, 0.25),
+    post_q75_mean = quantile(mean_delay, 0.75),
+    post_q025_cv = quantile(cv_delay, 0.025),
+    post_q975_cv = quantile(cv_delay, 0.975),
+    post_q25_cv = quantile(cv_delay, 0.25),
+    post_q75_cv = quantile(cv_delay, 0.75),
+    .groups = "drop"
   )
 
-# Visualise -------------------------------------------------------------------
+# Join with true values
+sim_summaries <- sim_summaries %>%
+  left_join(true_params,
+            by = c("scenario", "param_idx", "group",
+                   "delay_from", "delay_to"))
 
-# scenario_group_size <- tibble::tibble(
-#   scenario = c("baseline", "no_error", "no_missing", "no_error_no_missing"),
-#   group_size = c(100, 100, 100, 100)
-# )
-# 
-# sample_size_scenarios <- agg_sims_summary %>%
-#   filter(scenario %in% scenario_group_size$scenario) %>%
-#   left_join(scenario_group_size, by = "scenario") #%>%
-#   #mutate(group_size = factor(group_size, levels = c(10, 20, 50, 100, 500)))
+# Join with empirical values
+sim_summaries <- sim_summaries %>%
+  left_join(empirical_params,
+            by = c("scenario", "simulation", "param_idx", "group",
+                   "delay_from", "delay_to"))
 
-# # Coverage (with 95% binomial confidence intervals)
-# ggplot(sample_size_scenarios,
-#        aes(x = group_size, y = mu_95cov, group = group, colour = delay)) +
-#   #geom_point(position = position_dodge(width = 0.6), size = 2) +
-#   geom_point(size = 2) +
-#   geom_point(aes(y = mu_50cov, group = group, colour = delay)) +
-#   facet_wrap(~ group, ncol = 4, scales = "free_x") +
-#   geom_hline(yintercept = 0.95, linetype = "dashed", colour = "black") +
-#   geom_hline(yintercept = 0.5, linetype = "dashed", colour = "black") +
-#   labs(title = "Coverage for μ by Delay",
-#        x = "Sample size",
-#        y = "Coverage",
-#        colour = "Delay") +
-#   ylim(0, 1) +
-#   theme_minimal() +
-#   theme(
-#     axis.title.y = element_text(vjust = +4),
-#     axis.title.x = element_text(vjust = -2),
-#     panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)
-#   )
-
-# Bias (mean +/- SD) for mu
-bias <- ggplot(agg_sims_summary, aes(x = delay, y = mu_mean_bias, colour = delay)) +
-  geom_point() +
-  geom_hline(yintercept = 0, linetype = "dashed", colour = "black") +
-  #facet_wrap(~ group + scenario, ncol = 4, scales = "free_x") +
-  facet_grid(rows = vars(group), cols = vars(scenario), scales = "free") +
-  geom_errorbar(aes(ymin = mu_mean_bias - mu_sd_bias, ymax = mu_mean_bias + mu_sd_bias), width = 0.2) +
-  labs(title = "Mean Bias of mu (+/- SD) compared to ground truth", y = "Mean Bias", x = "Delay") +
-  theme_minimal() +
-  theme(
-    axis.title.y = element_text(vjust = +4),
-    axis.title.x = element_text(vjust = -2),
-    axis.text.x = element_text(angle = 25, hjust = 1),
-    strip.text = element_text(face = "bold"),
-    panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
-    legend.position = "none"
-  ) +
-ylim(-2.6, 2.6)
-
-ggsave("figures/bias_sanity_plot.pdf", bias, width = 7, height = 8)
-
-
-
-bias_mu_emp <- ggplot(agg_sims_summary, aes(x = delay, y = mu_emp_bias, colour = delay)) +
-  geom_point() +
-  geom_hline(yintercept = 0, linetype = "dashed", colour = "black") +
-  facet_grid(rows = vars(group), cols = vars(scenario), scales = "free") +
-  geom_errorbar(aes(ymin = mu_emp_bias - mu_emp_sd, ymax = mu_emp_bias + mu_emp_sd), width = 0.2) +
-  labs(title = "Mean Bias of mu (+/- SD) compared to sample truth", y = "Mean Bias", x = "Delay") +
-  theme_minimal() +
-  theme(
-    axis.title.y = element_text(vjust = +4),
-    axis.title.x = element_text(vjust = -2),
-    axis.text.x = element_text(angle = 25, hjust = 1),
-    strip.text = element_text(face = "bold"),
-    panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
-    legend.position = "none"
+# Calculate metrics
+sim_summaries <- sim_summaries %>%
+  mutate(
+    # Bias - ground truth
+    bias_mean = post_mean_mean - true_mean,
+    bias_cv = post_mean_cv - true_cv,
+    # Bias - empirical
+    bias_mean_emp = post_mean_mean - empirical_mean,
+    bias_cv_emp = post_mean_cv - empirical_cv,
+    # Coverage
+    cov95_mean = true_mean >= post_q025_mean & true_mean <= post_q975_mean,
+    cov50_mean = true_mean >= post_q25_mean & true_mean <= post_q75_mean,
+    cov95_cv = true_cv >= post_q025_cv & true_cv <= post_q975_cv,
+    cov50_cv = true_cv >= post_q25_cv & true_cv <= post_q75_cv,
+    # CrI width
+    width95_mean = post_q975_mean - post_q025_mean,
+    width50_mean = post_q75_mean - post_q25_mean,
+    width95_cv = post_q975_cv - post_q025_cv,
+    width50_cv = post_q75_cv - post_q25_cv
   )
 
-ggsave("figures/bias_sanity_plot_empirical.pdf", bias_mu_emp,
-       width = 7, height = 8)
+# Aggregate across simulations -----------------------------------------------
 
-# Bias (mean +/- SD) for cv
-cv_bias <- ggplot(agg_sims_summary, aes(x = delay, y = cv_mean_bias, colour = delay)) +
-  geom_point() +
-  geom_hline(yintercept = 0, linetype = "dashed", colour = "black") +
-  #facet_wrap(~ group + scenario, ncol = 3, scales = "free_x") +
+agg_summaries <- sim_summaries %>%
+  mutate(scenario = factor(
+    scenario, levels = c("baseline", "no_error",
+                         "no_missing", "no_error_no_missing")
+    )) %>%
+  group_by(scenario, param_idx, delay_label, delay_from, delay_to, group) %>%
+  summarise(
+    # Bias
+    mean_bias = mean(bias_mean, na.rm = TRUE),
+    sd_bias = sd(bias_mean, na.rm = TRUE),
+    cv_mean_bias = mean(bias_cv, na.rm = TRUE),
+    cv_sd_bias = sd(bias_cv, na.rm = TRUE),
+    # Empirical bias
+    mean_emp_bias = mean(bias_mean_emp, na.rm = TRUE),
+    mean_emp_sd = sd(bias_mean_emp, na.rm = TRUE),
+    cv_emp_bias = mean(bias_cv_emp, na.rm = TRUE),
+    cv_emp_sd = sd(bias_cv_emp, na.rm = TRUE),
+    # RMSE
+    mean_rmse = sqrt(mean(bias_mean^2, na.rm = TRUE)),
+    cv_rmse = sqrt(mean(bias_cv^2, na.rm = TRUE)),
+    # Coverage
+    mean_cov95 = mean(cov95_mean, na.rm = TRUE),
+    mean_cov50 = mean(cov50_mean, na.rm = TRUE),
+    cv_cov95 = mean(cov95_cv, na.rm = TRUE),
+    cv_cov50 = mean(cov50_cv, na.rm = TRUE),
+    # Width
+    mean_width95 = mean(width95_mean, na.rm = TRUE),
+    mean_width50 = mean(width50_mean, na.rm = TRUE),
+    cv_width95 = mean(width95_cv, na.rm = TRUE),
+    cv_width50 = mean(width50_cv, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# Trace plots ----------------------------------------------------------------
+
+# Average across simulations
+trace_data <- all_draws %>%
+  group_by(scenario, param_idx, delay_label, iteration, group) %>%
+  summarise(mean_delay = mean(mean_delay, na.rm = TRUE), .groups = "drop") %>%
+  left_join(true_params %>% select(scenario, param_idx, group, true_mean),
+            by = c("scenario", "param_idx", "group"))
+
+trace_plot_sanity <- ggplot(trace_data, 
+                            aes(x = iteration, y = mean_delay,
+                                colour = delay_label)) +
+  geom_line(alpha = 0.7) +
+  geom_hline(aes(yintercept = true_mean, colour = delay_label), 
+             linetype = "dashed", linewidth = 0.8) +
   facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
-  geom_errorbar(aes(ymin = cv_mean_bias - cv_sd_bias, ymax = cv_mean_bias + cv_sd_bias), width = 0.2) +
-  labs(title = "Mean Bias of CV (+/- SD)", y = "Mean Bias", x = "Delay") +
+  labs(y = "Mean Delay",
+       x = "Iteration",
+       colour = "Delay") +
   theme_minimal() +
-  theme(
-    axis.title.y = element_text(vjust = +4),
-    axis.title.x = element_text(vjust = -2),
-    axis.text.x = element_text(angle = 45, hjust = 1),
-    panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
-    legend.position = "none"
-  ) #+
-#ylim(-0.2, 0.2)
+  theme(strip.text = element_text(size = 8),
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
-ggsave("figures/cv_bias_sanity_plot.pdf", cv_bias, width = 7, height = 8)
+ggsave("figures/trace_plot.pdf", trace_plot_sanity, width = 12, height = 10)
 
+# Bias plots -----------------------------------------------------------------
 
-bias_cv_emp <- ggplot(agg_sims_summary, aes(x = delay, y = cv_emp_bias, colour = delay)) +
-  geom_point() +
+# Compare to true mean delay (ground truth)
+bias_plot <- ggplot(agg_summaries, 
+                    aes(x = delay_label, y = mean_bias, colour = delay_label)) +
+  geom_point(size = 2) +
   geom_hline(yintercept = 0, linetype = "dashed", colour = "black") +
-  facet_grid(rows = vars(group), cols = vars(scenario), scales = "free") +
-  geom_errorbar(aes(ymin = cv_emp_bias - cv_emp_sd, ymax = cv_emp_bias + cv_emp_sd), width = 0.2) +
-  labs(title = "Mean Bias of CV (+/- SD)", y = "Mean Bias", x = "Delay") +
+  geom_errorbar(aes(ymin = mean_bias - sd_bias, ymax = mean_bias + sd_bias), 
+                width = 0.3) +
+  facet_grid(rows = vars(group), cols = vars(scenario)) +
+  labs(title = "Mean Bias of Delay Parameters (+/- SD)",
+       subtitle = "Compared to ground truth",
+       y = "Mean Bias",
+       x = "Delay") +
   theme_minimal() +
-  theme(
-    axis.title.y = element_text(vjust = +4),
-    axis.title.x = element_text(vjust = -2),
-    axis.text.x = element_text(angle = 25, hjust = 1),
-    strip.text = element_text(face = "bold"),
-    panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
-    legend.position = "none"
-  )
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none",
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
-ggsave("figures/cv_bias_sanity_plot_empirical.pdf", bias_cv_emp, width = 7, height = 8)
+ggsave("figures/bias_plot.pdf", bias_plot, width = 10, height = 8)
 
+# Compare to mean delay of simulated true data (sample truth)
+bias_emp_plot <- ggplot(agg_summaries, 
+                        aes(x = delay_label, y = mean_emp_bias, colour = delay_label)) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "black") +
+  geom_errorbar(aes(ymin = mean_emp_bias - mean_emp_sd, 
+                    ymax = mean_emp_bias + mean_emp_sd), 
+                width = 0.3) +
+  facet_grid(rows = vars(group), cols = vars(scenario)) +
+  labs(title = "Mean Bias of Delay Parameters (+/- SD)",
+       subtitle = "Compared to sample truth",
+       y = "Mean Bias",
+       x = "Delay") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none",
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
-## Pick a sim
+ggsave("figures/bias_plot_empirical.pdf", bias_emp_plot, width = 10, height = 8)
 
-one_sim <- draws_with_labels %>%
-  filter(simulation %in% 1 & scenario %in% c("baseline", "no_error_no_missing")) %>%
-  group_by(group, scenario, delay, iteration) %>%
-  summarise(mean_mu = mean(mu, na.rm = TRUE))
+# CV bias plots
+cv_bias_plot <- ggplot(agg_summaries, 
+                       aes(x = delay_label, y = cv_mean_bias, colour = delay_label)) +
+  geom_point(size = 2) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "black") +
+  geom_errorbar(aes(ymin = cv_mean_bias - cv_sd_bias, 
+                    ymax = cv_mean_bias + cv_sd_bias), 
+                width = 0.3) +
+  facet_grid(rows = vars(group), cols = vars(scenario)) +
+  labs(title = "Mean Bias of CV Parameters (+/- SD)",
+       subtitle = "Compared to ground truth",
+       y = "Mean Bias",
+       x = "Delay") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none",
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
-baseline_data <- sim_data$baseline[[1]]
-correct_data <- sim_data$no_error_no_missing[[1]]
+ggsave("figures/cv_bias_plot.pdf", cv_bias_plot, width = 10, height = 8)
 
-identical(baseline_data$true_dat, baseline_data$obs_dat) # should be false
-identical(correct_data$true_dat, correct_data$obs_dat) # should be true
+# Coverage plot
+coverage_data <- agg_summaries %>%
+  select(scenario, group, delay_label, mean_cov95, mean_cov50) %>%
+  tidyr::pivot_longer(cols = c(mean_cov95, mean_cov50),
+                      names_to = "interval",
+                      values_to = "coverage") %>%
+  mutate(interval = ifelse(interval == "mean_cov95", "95% CrI", "50% CrI"))
+
+coverage_plot <- ggplot(coverage_data, 
+                        aes(x = delay_label, y = coverage, 
+                            colour = delay_label, shape = interval)) +
+  geom_point(size = 3) +
+  geom_hline(yintercept = 0.95, linetype = "dashed", colour = "gray40") +
+  geom_hline(yintercept = 0.50, linetype = "dashed", colour = "gray40") +
+  facet_grid(rows = vars(group), cols = vars(scenario)) +
+  labs(title = "Coverage of Credible Intervals",
+       y = "Coverage Probability",
+       x = "Delay",
+       shape = "") +
+  ylim(0, 1) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "top",
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)) +
+  guides(colour = "none")
+
+ggsave("figures/coverage_plot.pdf", coverage_plot, width = 10, height = 8)
+
+# Save summary tables
+saveRDS(sim_summaries, "figures/sim_summaries.rds")
+saveRDS(agg_summaries, "figures/agg_summaries.rds")
