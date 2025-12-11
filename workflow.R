@@ -3,16 +3,28 @@ library(hipercow)
 #renv::install("mrc-ide/datefixer@export_functions")
 #renv::install("mrc-ide/monty@mrc-6769")
 
-resources <- hipercow_resources(cores = 4)
+hipercow_provision() # set up packages using renv
+resources <- hipercow_resources(cores = 32)
 
 # Create a named list containing the simulation parameters for all scenarios
 orderly_run("sim_params")
 
 # Simulate data for all scenarios
-orderly_run("sim_data", parameters = list(nsims = 100))
+sim100 <- task_create_expr(
+  orderly::orderly_run("sim_data", parameters = list(nsims = 100)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
 
 # Smaller number of sims for de-bugging
-#orderly_run("sim_data", parameters = list(nsims = 10))
+# sim10 <- task_create_expr(
+#   orderly::orderly_run("sim_data", parameters = list(nsims = 10))
+# )
+
+task_status(sim100)
+task_info(sim100)
+task_result(sim100)
+#task_cancel(sim100)
 
 # MCMC output -----------------------------------------------------------------
 baseline <- task_create_expr(
