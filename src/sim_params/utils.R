@@ -32,7 +32,7 @@ build_sim_params <- function(
     to = c("report", "report", "report", "report", "death", "hospitalisation",
            "discharge", "hospitalisation", "death"),
     delay_dist = delay_dist,
-    delay_mean = c(5, 6, 7, 8, 9, 10, 11, 12, 13),
+    delay_mean = c(7, 7, 7, 7, 8, 9, 10, 11, 12),
     delay_cv = c(0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5)
   )
   
