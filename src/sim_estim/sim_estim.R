@@ -48,8 +48,19 @@ for (scenario in scenario_list) {
   sim_data_list <- sim_data[[scenario]]
   sim_param <- sim_params[[scenario]]
   delay_map <- sim_param$delay_map
-
-mcmc_samples <- parLapply(NULL, seq_along(sim_data_list), function(sim) {
+  
+  # Get the cluster that hipercow created
+  cl <- parallel::getDefaultCluster()
+  
+  parallel::clusterExport(cl, 
+                          varlist = c("sim_data_list", "delay_map", 
+                                      "hyperparameters", "control", "sampler"),
+                          envir = environment())
+  
+  # Load datefixer package on each worker
+  parallel::clusterEvalQ(cl, library(datefixer))
+  
+mcmc_samples <- parLapply(cl, seq_along(sim_data_list), function(sim) {
   
   x <- sim_data_list[[sim]]
   #message("Processing sim ", sim, " for scenario: ", scenario)
