@@ -4,12 +4,11 @@
 
 library(orderly)
 library(datefixer)
+library(parallel)
 
 ## Number of data sets to simulate for each scenario
 pars <- orderly_parameters(nsims = NULL)
-
 orderly_dependency("sim_params", "latest", files = "sim_params.rds")
-
 orderly_artefact(description = "Simulated Data", files = "sim_data.rds")
 
 # Load all simulation parameters
@@ -17,7 +16,14 @@ all_params <- readRDS("sim_params.rds")
 
 # Simulate
 simulate_scenario <- function(sim_params, nsims) {
-  replicate(nsims, {
+  
+  cl <- parallel::getDefaultCluster()
+  parallel::clusterExport(cl, 
+                          varlist = c("sim_params"),
+                          envir = environment())
+  parallel::clusterEvalQ(cl, library(datefixer))
+  
+  parallel::parLapply(cl, seq_len(nsims), function(i) {
     simulate_data(
       sim_params$n_per_group,
       sim_params$delay_map,
@@ -26,7 +32,7 @@ simulate_scenario <- function(sim_params, nsims) {
       sim_params$date_range,
       simul_error = TRUE
     )
-  }, simplify = FALSE)
+  })
 }
 
 # Named list of simulated data
