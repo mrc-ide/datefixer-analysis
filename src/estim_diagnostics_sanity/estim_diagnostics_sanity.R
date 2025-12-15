@@ -34,15 +34,13 @@ dir.create("figures")
 sim_params <- readRDS("sim_params.rds")
 sim_data <- readRDS("sim_data.rds")
 
-sim_estim_baseline   <- readRDS("sim_estim_baseline.rds")
-sim_estim_no_error   <- readRDS("sim_estim_no_error.rds")
-sim_estim_no_missing <- readRDS("sim_estim_no_missing.rds")
-sim_estim_no_error_no_miss <- readRDS("sim_estim_no_error_no_missing.rds")
-
-sim_estim <- c(sim_estim_baseline,
-               sim_estim_no_error,
-               sim_estim_no_missing,
-               sim_estim_no_error_no_miss)
+sim_estim <- setNames(
+  lapply(scenarios, function(s) {
+    filename <- paste0("sim_estim_", s, ".rds")
+    readRDS(filename)[[1]]
+  }),
+  scenarios
+)
 
 ## Plan for across simulation summaries --------------------------------------
 # Mean bias (posterior mean - true value)
