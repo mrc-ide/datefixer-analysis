@@ -11,21 +11,13 @@ library(ggplot2)
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
 
-orderly_dependency("sim_estim",
-                   "latest(parameter:scenario == 'baseline')",
-                   c("sim_estim_baseline.rds" = "sim_estim.rds"))
+scenarios <- c("baseline", "no_error", "no_missing", "no_error_no_missing")
 
+for (s in scenarios) {
 orderly_dependency("sim_estim",
-                   "latest(parameter:scenario == 'no_error')",
-                   c("sim_estim_no_error.rds" = "sim_estim.rds"))
-
-orderly_dependency("sim_estim",
-                   "latest(parameter:scenario == 'no_missing')",
-                   c("sim_estim_no_missing.rds" = "sim_estim.rds"))
-
-orderly_dependency("sim_estim",
-                   "latest(parameter:scenario == 'no_error_no_missing')",
-                   c("sim_estim_no_error_no_missing.rds" = "sim_estim.rds"))
+                   "latest(parameter:scenario == environment:s)",
+                   c("sim_estim_${s}.rds" = "sim_estim.rds"))
+}
 
 orderly_artefact(files = c("figures/trace_plot.pdf",
                            "figures/bias_plot.pdf",
