@@ -1,7 +1,9 @@
 library(orderly)
 library(hipercow)
-#renv::install("mrc-ide/datefixer@export_functions")
+#renv::install("mrc-ide/datefixer@update_simulate_data")
 #renv::install("mrc-ide/monty@mrc-6769")
+
+orderly_location_fetch_metadata("outbreak_analysis_network")
 
 hipercow_provision() # set up packages using renv
 resources <- hipercow_resources(cores = 32)
