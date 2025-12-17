@@ -18,11 +18,11 @@ build_sim_params <- function(
   date_range <- as.integer(as.Date(c("2014-01-01", "2015-01-01")))
   
   delay_map <- data.frame(
-    from = c("onset", "onset", "onset",
+    from = c("onset", "onset", "onset", "onset", "onset", "onset",
              "hospitalisation", "onset", "hospitalisation"),
-    to = c("report", "death", "hospitalisation",
+    to = c("report", "report", "report", "report", "death", "hospitalisation",
            "discharge", "hospitalisation", "death"),
-    group = I(list(1:4, 2, 3, 3, 4, 4))
+    group = I(list(1, 2, 3, 4, 2, 3, 3, 4, 4))
   )
   
   delay_params <- data.frame(
