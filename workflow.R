@@ -3,7 +3,7 @@
 
 library(orderly)
 library(hipercow)
-#renv::install("mrc-ide/datefixer@update_simulate_data")
+#renv::install("mrc-ide/datefixer")
 #renv::install("mrc-ide/monty@mrc-6769")
 
 orderly_location_fetch_metadata("outbreak_analysis_network")
