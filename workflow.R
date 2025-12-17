@@ -1,3 +1,6 @@
+# orderly_location_fetch_metadata()
+# orderly_location_pull(task_id, location = "outbreak_analysis_network")
+
 library(orderly)
 library(hipercow)
 #renv::install("mrc-ide/datefixer@update_simulate_data")
