@@ -982,15 +982,16 @@
         "testthat (>= 3.0.0)"
       ],
       "Config/testthat/edition": "3",
-      "Author": "First Last [aut, cre]",
-      "Maintainer": "First Last <first.last@example.com>",
+      "Remotes": "mrc-ide/monty@mrc-6769",
       "RemoteType": "github",
       "RemoteHost": "api.github.com",
-      "RemoteUsername": "mrc-ide",
       "RemoteRepo": "datefixer",
-      "RemoteRef": "update_simulate_data",
-      "RemoteSha": "6f6a35826b91e5e3f8ea43737ce3697a74f02521",
-      "Remotes": "mrc-ide/monty@mrc-6769"
+      "RemoteUsername": "mrc-ide",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "f86849d3c9568db16896fbb46a4d7184d37f40b4",
+      "NeedsCompilation": "no",
+      "Author": "First Last [aut, cre]",
+      "Maintainer": "First Last <first.last@example.com>"
     },
     "dbplyr": {
       "Package": "dbplyr",
