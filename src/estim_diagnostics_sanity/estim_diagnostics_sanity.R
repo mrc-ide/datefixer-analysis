@@ -319,7 +319,7 @@ make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols =
     facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
     labs(y = y_label, x = "Iteration", colour = "Delay", title = title) +
     theme_minimal() +
-    theme(strip.text = element_text(size = 8),
+    theme(strip.text = element_text(size = 10, face = "bold"),
           panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
   
   if (add_symbols) {
@@ -372,7 +372,8 @@ make_bias_plot <- function(data, bias_avg_col, bias_sd_col, title, subtitle) {
          y = "Mean Bias",
          x = "Delay") +
     theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+    theme(strip.text = element_text(size = 10, face = "bold"),
+          axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "none",
           panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 }
@@ -426,7 +427,7 @@ make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
   ggplot(coverage_data, 
               aes(x = delay_label, y = coverage, 
                   colour = delay_label, shape = interval)) +
-    geom_point(size = 3) +
+    geom_point(size = 2) +
     geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), 
                   width = 0.3, alpha = 0.6) +
     geom_hline(yintercept = 0.95, linetype = "dashed", colour = "black") +
@@ -439,7 +440,8 @@ make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
          shape = "") +
     ylim(0, 1) +
     theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+    theme(strip.text = element_text(size = 9, face = "bold"),
+          axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "top",
           panel.border = element_rect(colour = "darkgrey",
                                       fill = NA, linewidth = 1)
