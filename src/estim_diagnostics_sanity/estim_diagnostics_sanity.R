@@ -469,3 +469,81 @@ emp_coverage <- make_coverage_plot(
 )
 
 ggsave("figures/coverage_plot_empirical.pdf", emp_coverage, width = 10, height = 8)
+
+# Posterior density plots ----------------------------------------------------
+
+# Aggregate draws across simulations for cleaner visualisation
+posterior_data <- all_draws %>%
+  mutate(delay_label = factor(delay_label, levels = c("onset to report",
+                                                      "onset to death",
+                                                      "onset to hospitalisation",
+                                                      "hospitalisation to discharge",
+                                                      "hospitalisation to death"))
+  ) %>%
+  filter(param_idx > 0, iteration > 100) %>%
+  left_join(select(true_params, scenario, param_idx, group, true_mean, true_cv),
+            by = c("scenario", "param_idx", "group"))
+
+# Mean delay posteriors
+mean_posterior_plot <- ggplot(posterior_data, 
+                              aes(x = mean_delay, fill = scenario, colour = scenario)) +
+  geom_density(alpha = 0.3) +
+  geom_vline(aes(xintercept = true_mean), linetype = "dashed", linewidth = 0.8) +
+  facet_grid(rows = vars(group), cols = vars(delay_label), scales = "free") +
+  labs(title = "Posterior Distributions: Mean Delay",
+       subtitle = "Dashed line = true value. Densities across all simulations.",
+       x = "Mean Delay (days)",
+       y = "Density",
+       fill = "Scenario",
+       colour = "Scenario") +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 7, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
+
+ggsave("figures/posterior_mean_delay.pdf", mean_posterior_plot, width = 14, height = 10)
+
+# CV delay posteriors
+cv_posterior_plot <- ggplot(posterior_data, 
+                            aes(x = cv_delay, fill = scenario, colour = scenario)) +
+  geom_density(alpha = 0.3) +
+  geom_vline(aes(xintercept = true_cv), linetype = "dashed", linewidth = 0.8) +
+  facet_grid(rows = vars(group), cols = vars(delay_label), scales = "free") +
+  labs(title = "Posterior Distributions: CV",
+       subtitle = "Dashed line = true value. Densities across all simulations.",
+       x = "Coefficient of Variation",
+       y = "Density",
+       fill = "Scenario",
+       colour = "Scenario") +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 7, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
+
+ggsave("figures/posterior_cv.pdf", cv_posterior_plot, width = 14, height = 10)
+
+
+# Error probability posteriors
+prob_error_posterior_data <- all_draws %>%
+  filter(param_idx == 0, iteration > 100) %>%
+  left_join(true_prob_error, by = "scenario")
+
+prob_error_posterior_plot <- ggplot(prob_error_posterior_data,
+                                    aes(x = prob_error, fill = scenario, colour = scenario)) +
+  geom_density(alpha = 0.3) +
+  geom_vline(aes(xintercept = true_prob_error), linetype = "dashed", linewidth = 0.8) +
+  facet_wrap(~ scenario, scales = "free_y", nrow = 1) +
+  scale_x_continuous(expand = c(0, 0), limits = c(-0.001, NA)) +
+  scale_y_continuous(expand = c(0, 1)) +
+  labs(title = "Posterior Distributions: Probability of Error",
+       subtitle = "Dashed line = true value. Densities across all simulations.",
+       x = "Probability of Error",
+       y = "Density",
+       fill = "Scenario",
+       colour = "Scenario") +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 10, face = "bold"),
+        legend.position = "none",
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
+
+ggsave("figures/posterior_prob_error.pdf", prob_error_posterior_plot, width = 14, height = 4)
