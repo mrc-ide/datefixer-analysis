@@ -60,3 +60,6 @@ no_error_no_missing <- task_create_expr(
   parallel = hipercow_parallel("parallel"),
   resources = resources
 )
+
+
+orderly_run("estim_diagnostics_sanity")
