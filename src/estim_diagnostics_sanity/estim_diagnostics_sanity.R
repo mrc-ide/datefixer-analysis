@@ -268,7 +268,7 @@ agg_summaries <- sim_summaries %>%
     n_sims = n(),
     # Bias metrics: average, SD, and RMSE across simulations
     across(ends_with("_bias") | ends_with("_bias_emp"),
-           list(avg = ~mean(., na.rm = TRUE), 
+           list(avg = ~median(., na.rm = TRUE), 
                 sd = ~sd(., na.rm = TRUE),
                 rmse = ~sqrt(mean(.^2, na.rm = TRUE))),
            .names = "{.col}_{.fn}"),
@@ -325,7 +325,7 @@ make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols =
   if (add_symbols) {
     true_points <- data %>%
       distinct(scenario, group, delay_label, {{true_var}}) %>%
-      crossing(iteration = c(min(data$iteration), max(data$iteration)))
+      tidyr::crossing(iteration = c(min(data$iteration), max(data$iteration)))
     
     p <- p + geom_point(data = true_points,
                         aes(x = iteration, y = {{true_var}}, fill = delay_label),
@@ -369,7 +369,7 @@ make_bias_plot <- function(data, bias_avg_col, bias_sd_col, title, subtitle) {
     facet_grid(rows = vars(group), cols = vars(scenario)) +
     labs(title = title,
          subtitle = subtitle,
-         y = "Mean Bias",
+         y = "Median Bias",
          x = "Delay") +
     theme_minimal() +
     theme(strip.text = element_text(size = 10, face = "bold"),
@@ -381,7 +381,7 @@ make_bias_plot <- function(data, bias_avg_col, bias_sd_col, title, subtitle) {
 # Compare to true mean delay (ground truth)
 bias_plot_gt <- make_bias_plot(agg_summaries,
                                delay_bias_avg, delay_bias_sd,
-                               "Mean Bias of Delay Parameters (+/- SD)",
+                               "Median Bias of Mean Delay Parameters (+/- SD)",
                                "Compared to ground truth")
 
 ggsave("figures/bias_plot.pdf", bias_plot_gt, width = 10, height = 8)
@@ -389,7 +389,7 @@ ggsave("figures/bias_plot.pdf", bias_plot_gt, width = 10, height = 8)
 # Compare to mean delay of simulated true data (sample truth)
 bias_plot_emp <- make_bias_plot(agg_summaries,
                                 delay_bias_emp_avg, delay_bias_emp_sd,
-                                "Mean Bias of Delay Parameters (+/- SD)",
+                                "Median Bias of Mean Delay Parameters (+/- SD)",
                                 "Compared to sample truth")
 
 ggsave("figures/bias_plot_empirical.pdf", bias_plot_emp, width = 10, height = 8)
