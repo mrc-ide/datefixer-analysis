@@ -35,7 +35,8 @@ if (is.null(selected_scenario) || identical(selected_scenario, "all")) {
 
 # MCMC settings ---------------------------------------------------------------
 
-control <- mcmc_control()
+control <- mcmc_control(earliest_possible_date = "2014-01-01",
+                        latest_possible_date = "2015-01-01")
 sampler <- datefixer_sampler(control)
 hyperparameters <- datefixer_hyperparameters()
 
