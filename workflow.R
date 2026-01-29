@@ -13,7 +13,7 @@ hipercow_provision(method = "pkgdepends")
 resources <- hipercow_resources(cores = 32)
 
 # Create a named list containing the simulation parameters for all scenarios
-orderly_run("sim_params")
+orderly_run("sim_params") # "20260129-154325-a6f8e3c5"
 
 # Simulate data for all scenarios
 sim100 <- task_create_expr(
@@ -22,15 +22,9 @@ sim100 <- task_create_expr(
   resources = resources
 )
 
-# Smaller number of sims for de-bugging
-# sim10 <- task_create_expr(
-#   orderly::orderly_run("sim_data", parameters = list(nsims = 10))
-# )
-
 task_status(sim100)
-task_info(sim100) # 2f431feee37c8bd40af60f1e83058cd2
-task_result(sim100)
-#task_cancel(sim100)
+task_info(sim100) # 81525dfadd8b16f915923e88e70be77c
+task_result(sim100) # "20260129-154351-0fb3bc07"
 
 # MCMC output -----------------------------------------------------------------
 baseline <- task_create_expr(
@@ -40,8 +34,8 @@ baseline <- task_create_expr(
 )
 
 task_status(baseline)
-task_info(baseline) # 0ea3e7d879fafebee604e2975a8f9df0
-task_result(baseline) # "20260105-101404-d0f1a4d9"
+task_info(baseline) # 590bc6a10b5d77f51277aafc320df14c
+task_result(baseline) # "20260129-155259-b8fa7c26"
 
 # sanity checks
 no_missing <- task_create_expr(
@@ -50,8 +44,8 @@ no_missing <- task_create_expr(
   resources = resources
 )
 
-task_info(no_missing) # f5dc536c929516316f4de0fc58167704
-task_result(no_missing) # "20260105-101522-a821c5cb"
+task_info(no_missing) # d9af3648bc132ccd582139479b44f142
+task_result(no_missing) # "20260129-155617-b47e172d"
 
 no_error <- task_create_expr(
   orderly::orderly_run("sim_estim", parameters = list(scenario = "no_error")),
@@ -59,8 +53,8 @@ no_error <- task_create_expr(
   resources = resources
 )
 
-task_info(no_error) # 741085fc391ee442181375d5a89cbd8c
-task_result(no_error) # "20260105-101551-ebf2f18a"
+task_info(no_error) # a4cb101177d0e83ea6424ced636ac41e
+task_result(no_error) # "20260129-155627-9f57deb1"
 
 no_error_no_missing <- task_create_expr(
   orderly::orderly_run("sim_estim", parameters = list(scenario = "no_error_no_missing")),
@@ -68,9 +62,8 @@ no_error_no_missing <- task_create_expr(
   resources = resources
 )
 
-
-task_info(no_error_no_missing) # 97e1229eef6e472f237a2d24dc916c23
-task_result(no_error_no_missing) # "20260105-101600-0a839f54"
+task_info(no_error_no_missing) # 763cbea5a9f06f12d2e79c7b70c9ab76
+task_result(no_error_no_missing) # "20260129-155636-ea8ce86d"
 
 
 orderly_run("estim_diagnostics_sanity")
