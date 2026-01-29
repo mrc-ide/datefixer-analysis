@@ -68,6 +68,9 @@ no_error_no_missing <- task_create_expr(
   resources = resources
 )
 
+
 task_info(no_error_no_missing) # 97e1229eef6e472f237a2d24dc916c23
 task_result(no_error_no_missing) # "20260105-101600-0a839f54"
 
+
+orderly_run("estim_diagnostics_sanity")
