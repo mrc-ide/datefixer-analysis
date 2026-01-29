@@ -10,6 +10,8 @@ orderly
 parallel
 tibble
 dplyr
+tidyr
 purrr
 patchwork
 ggplot2
+glue
