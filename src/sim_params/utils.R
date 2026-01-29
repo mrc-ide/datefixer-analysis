@@ -23,13 +23,9 @@ build_sim_params <- function(
     to = c("report", "report", "report", "report", "death", "hospitalisation",
            "discharge", "hospitalisation", "death"),
     group = I(list(
-      c("community-alive", "community-dead",
-        "hospitalised-alive", "hospitalised-dead"),
-      "community-dead",
-      "hospitalised-alive",
-      "hospitalised-alive", 
-      "hospitalised-dead",
-      "hospitalised-dead"
+      "community-alive", "community-dead", "hospitalised-alive", "hospitalised-dead",
+      "community-dead", "hospitalised-alive", "hospitalised-alive", 
+      "hospitalised-dead", "hospitalised-dead"
     ))
   )
   
