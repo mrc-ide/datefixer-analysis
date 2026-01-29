@@ -22,11 +22,22 @@ build_sim_params <- function(
              "hospitalisation", "onset", "hospitalisation"),
     to = c("report", "report", "report", "report", "death", "hospitalisation",
            "discharge", "hospitalisation", "death"),
-    group = I(list(1, 2, 3, 4, 2, 3, 3, 4, 4))
+    group = I(list(
+      c("community-alive", "community-dead",
+        "hospitalised-alive", "hospitalised-dead"),
+      "community-dead",
+      "hospitalised-alive",
+      "hospitalised-alive", 
+      "hospitalised-dead",
+      "hospitalised-dead"
+    ))
   )
   
   delay_params <- data.frame(
-    group = c(1:4, 2, 3, 3, 4, 4),
+    #group = c(1:4, 2, 3, 3, 4, 4),
+    group = c("community-alive", "community-dead", "hospitalised-alive",
+              "hospitalised-dead", "community-dead", "hospitalised-alive",
+              "hospitalised-alive", "hospitalised-dead", "hospitalised-dead"),
     from = c("onset", "onset", "onset", "onset", "onset", "onset",
              "hospitalisation", "onset", "hospitalisation"),
     to = c("report", "report", "report", "report", "death", "hospitalisation",
