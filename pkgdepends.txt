@@ -1,0 +1,15 @@
+# Repos
+repo::https://mrc-ide.r-universe.dev
+
+# Specific package versions
+mrc-ide/monty@mrc-6769
+mrc-ide/datefixer@update-simulation-groups
+
+# CRAN
+orderly
+parallel
+tibble
+dplyr
+purrr
+patchwork
+ggplot2
