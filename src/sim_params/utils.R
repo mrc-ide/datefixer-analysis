@@ -30,7 +30,6 @@ build_sim_params <- function(
   )
   
   delay_params <- data.frame(
-    #group = c(1:4, 2, 3, 3, 4, 4),
     group = c("community-alive", "community-dead", "hospitalised-alive",
               "hospitalised-dead", "community-dead", "hospitalised-alive",
               "hospitalised-alive", "hospitalised-dead", "hospitalised-dead"),
