@@ -50,239 +50,198 @@ sim_estim <- setNames(
 
 # Delay mapping (defines which param_idx corresponds to which delay) ---------
 delay_mapping <- tribble(
-  ~param_idx, ~delay_from,         ~delay_to,            ~group,
-  1,          "onset",             "report",             "Community-alive",
-  2,          "onset",             "report",             "Community-dead",
-  3,          "onset",             "report",             "Hospital-alive",
-  4,          "onset",             "report",             "Hospital-dead",
-  5,          "onset",             "death",              "Community-dead",
-  6,          "onset",             "hospitalisation",    "Hospital-alive",
-  7,          "hospitalisation",   "discharge",          "Hospital-alive",
-  8,          "onset",             "hospitalisation",    "Hospital-dead",
-  9,          "hospitalisation",   "death",              "Hospital-dead"
+  ~param_idx, ~delay_from,       ~delay_to,           ~group,
+  1,          "onset",             "report",            "community-alive",
+  2,          "onset",             "report",            "community-dead",
+  3,          "onset",             "report",            "hospitalised-alive",
+  4,          "onset",             "report",            "hospitalised-dead",
+  5,          "onset",             "death",             "community-dead",
+  6,          "onset",             "hospitalisation",   "hospitalised-alive",
+  7,          "hospitalisation",   "discharge",         "hospitalised-alive",
+  8,          "onset",             "hospitalisation",   "hospitalised-dead",
+  9,          "hospitalisation",   "death",             "hospitalised-dead"
 ) %>%
-  mutate(delay_label = glue("{delay_from} to {delay_to}"),
-         group = factor(group, levels = c("Community-alive", "Community-dead", 
-                                          "Hospital-alive", "Hospital-dead")),
-         delay_group_label = glue("{delay_from} to {delay_to} ({group})"))
+  mutate(
+    param_label = as.character(glue("{delay_from} to {delay_to}")),
+    group = as.character(group)
+  )
+
+apply_factor_levels <- function(df) {
+  df %>% mutate(
+    param_label = as.character(param_label),
+    param_label = ifelse(param_idx == 0, "probability of error", param_label),
+    group = factor(group, levels = c("community-alive", "community-dead", 
+                                     "hospitalised-alive", "hospitalised-dead")),
+    param_label = factor(param_label, levels = c(
+      "probability of error",
+      "onset to report", 
+      "onset to death", 
+      "onset to hospitalisation", 
+      "hospitalisation to discharge", 
+      "hospitalisation to death"
+    )),
+    scenario = factor(recode(scenario, !!!scenario_labels),
+                      levels = unname(scenario_labels))
+  )
+}
 
 # Extract true parameter values ----------------------------------------------
-true_params <- map_dfr(names(sim_params), ~tibble(
-  scenario = .x,
-  param_idx = 1:nrow(sim_params[[.x]]$delay_params),
-  true_mean = sim_params[[.x]]$delay_params$delay_mean,
-  true_cv = sim_params[[.x]]$delay_params$delay_cv
-)) %>%
-  mutate(
-    scenario = recode(scenario, !!!scenario_labels),
-    scenario = factor(scenario, levels = unname(scenario_labels))
-  ) %>%
-  left_join(delay_mapping, by = "param_idx")
+true_params <- map_dfr(scenarios, function(sn) {
+  params <- sim_params[[sn]]
+  # Delays
+  tibble(
+    param_idx = 1:nrow(params$delay_params),
+    true_mean = params$delay_params$delay_mean,
+    true_cv   = params$delay_params$delay_cv
+  ) %>% 
+    # Error
+    bind_rows(tibble(
+      param_idx = 0,
+      true_mean = params$error_params$prob_error,
+      true_cv   = NA
+    )) %>% 
+    mutate(scenario = sn)
+}) %>%
+  left_join(delay_mapping, by = "param_idx") %>%
+  apply_factor_levels()
 
-true_prob_error <- map_dfr(names(sim_params), ~tibble(
-  scenario = .x,
-  true_prob_error = sim_params[[.x]]$error_params$prob_error
-)) %>%
-  mutate(
-    scenario = recode(scenario, !!!scenario_labels),
-    scenario = factor(scenario, levels = unname(scenario_labels))
-  )
-
-# Extract empirical mean/CV from simulated data -----------------------------
-delay_specs <- list(
-  list(col = "onset_report", groups = 1:4, param_idx_fn = function(g) g),
-  list(col = "onset_death", groups = 2, param_idx_fn = function(g) 5),
-  list(col = "onset_hosp", groups = 3, param_idx_fn = function(g) 6),
-  list(col = "hosp_discharge", groups = 3, param_idx_fn = function(g) 7),
-  list(col = "onset_hosp", groups = 4, param_idx_fn = function(g) 8),
-  list(col = "hosp_death", groups = 4, param_idx_fn = function(g) 9)
-)
-
-empirical_params <- map_dfr(names(sim_data), function(scenario_name) {
+# Extract empirical params from simulated data --------------------------------
+empirical_params <- map_dfr(scenarios, function(scenario_name) {
   map_dfr(seq_along(sim_data[[scenario_name]]), function(sim_idx) {
     
-    delays <- sim_data[[scenario_name]][[sim_idx]]$true_data %>%
-      mutate(
-        onset_report = as.numeric(report - onset),
-        onset_death = as.numeric(death - onset),
-        onset_hosp = as.numeric(hospitalisation - onset),
-        hosp_discharge = as.numeric(discharge - hospitalisation),
-        hosp_death = as.numeric(death - hospitalisation)
-      )
+    sim_obj <- sim_data[[scenario_name]][[sim_idx]]
     
-    # Calculate empirical stats for all delay types
-    map_dfr(delay_specs, function(spec) {
-      delays %>%
-        filter(group %in% spec$groups) %>%
-        group_by(group) %>%
-        summarise(
-          empirical_mean = mean(.data[[spec$col]], na.rm = TRUE),
-          empirical_cv = sd(.data[[spec$col]], na.rm = TRUE) / empirical_mean,
-          .groups = "drop"
-        ) %>%
-        mutate(
-          param_idx = as.integer(spec$param_idx_fn(group)),
-          scenario = scenario_name,
-          simulation = sim_idx
-        ) %>%
-        select(-group)
-    })
+    err_ind <- sim_obj$error_indicators %>% select(-id, -group)
+    total_errors <- sum(err_ind == TRUE, na.rm = TRUE)
+    total_possible_dates <- sum(!is.na(err_ind))
+    
+    emp_error_row <- tibble(
+      param_idx = 0,
+      empirical_mean = total_errors / total_possible_dates,
+      empirical_cv = NA,
+      group = NA,
+      param_label = "probability of error"
+    )
+    
+    delay_stats <- sim_obj$true_data %>%
+      mutate(
+        "onset to report" = as.numeric(report - onset),
+        "onset to death" = as.numeric(death - onset),
+        "onset to hospitalisation" = as.numeric(hospitalisation - onset),
+        "hospitalisation to discharge" = as.numeric(discharge - hospitalisation),
+        "hospitalisation to death" = as.numeric(death - hospitalisation)
+      ) %>%
+      pivot_longer(cols = contains(" to "), names_to = "param_label", values_to = "val") %>%
+      inner_join(delay_mapping, by = c("group", "param_label")) %>%
+      filter(!is.na(val)) %>%
+      group_by(param_idx, group, param_label) %>%
+      summarise(empirical_mean = mean(val),
+                empirical_cv = sd(val) / mean(val), .groups = "drop")
+    
+    bind_rows(emp_error_row, delay_stats) %>%
+      mutate(scenario = scenario_name, simulation = sim_idx)
   })
-}) %>%
-  left_join(delay_mapping, by = c("param_idx")) %>%
-  mutate(
-    scenario = recode(scenario, !!!scenario_labels),
-    scenario = factor(scenario, levels = unname(scenario_labels))
-  )
+}) %>% 
+  apply_factor_levels()
 
-# Extract MCMC draws ---------------------------------------------------------
+# MCMC Extraction ------------------------------------------------------------
 extract_draws <- function(mcmc_result, scenario_name, sim_idx) {
   pars <- mcmc_result$pars
   n_iter <- dim(pars)[2]
   n_chains <- dim(pars)[3]
+  
   iter_chain <- expand_grid(
     iteration = 1:n_iter,
     chain = 1:n_chains
   )
   
-  bind_rows(
-    # Prob error
+  map_dfr(0:9, function(i) {
+    p_name <- if(i == 0) "prob_error" else paste0("mean_delay", i)
+    cv_name <- if(i == 0) NULL else paste0("cv_delay", i)
+    
     iter_chain %>%
       mutate(
         scenario = scenario_name,
         simulation = sim_idx,
-        param_idx = 0L,
-        prob_error = as.vector(pars["prob_error", , ]),
-        mean_delay = NA,
-        cv_delay = NA
-      ),
-    # Delay parameters
-    map_dfr(1:max(delay_mapping$param_idx), function(i) {
-      iter_chain %>%
-        mutate(
-          scenario = scenario_name,
-          simulation = sim_idx,
-          param_idx = i,
-          prob_error = NA,
-          mean_delay = as.vector(pars[paste0("mean_delay", i), , ]),
-          cv_delay = as.vector(pars[paste0("cv_delay", i), , ])
-        )
-    })
-  )
+        param_idx = i,
+        post_mean = as.vector(pars[p_name, , ]),
+        post_cv   = if(!is.null(cv_name)) as.vector(pars[cv_name, , ]) else NA
+      )
+  })
 }
 
-# Extract draws
-all_draws <- map_dfr(names(sim_estim), function(scenario_name) {
-  cat(sprintf("  %s\n", scenario_name))
-  map_dfr(seq_along(sim_estim[[scenario_name]]),
-          ~extract_draws(sim_estim[[scenario_name]][[.x]], scenario_name, .x))
+# Extract all and apply factors
+all_draws <- map_dfr(names(sim_estim), function(sn) {
+  map_dfr(seq_along(sim_estim[[sn]]), 
+          ~extract_draws(sim_estim[[sn]][[.x]], sn, .x))
 }) %>%
-  mutate(
-    scenario = recode(scenario, !!!scenario_labels),
-    scenario = factor(scenario, levels = unname(scenario_labels))
-    ) %>%
-  left_join(delay_mapping, by = "param_idx")
+  left_join(delay_mapping, by = "param_idx") %>%
+  apply_factor_levels()
 
 
 # Calculate posterior summaries per simulation -------------------------------
-
-prob_error_summaries <- all_draws %>%
-  filter(param_idx == 0) %>%
-  group_by(scenario, simulation) %>%
-  summarise(
-    across(prob_error,
-           list(mean = ~mean(., na.rm = TRUE),
-                q025 = ~quantile(., 0.025, na.rm = TRUE),
-                q975 = ~quantile(., 0.975, na.rm = TRUE),
-                q25 = ~quantile(., 0.25, na.rm = TRUE),
-                q75 = ~quantile(., 0.75, na.rm = TRUE)),
-           .names = "post_{.fn}_{.col}"),
-    .groups = "drop"
-  )
-
 sim_summaries <- all_draws %>%
-  filter(param_idx > 0) %>%
-  group_by(scenario, simulation, param_idx, delay_label, delay_from, delay_to, group) %>%
+  group_by(scenario, simulation, param_idx, param_label, group) %>%
   summarise(
-    across(c(mean_delay, cv_delay), 
-           list(mean = ~mean(., na.rm = TRUE),
-                q025 = ~quantile(., 0.025, na.rm = TRUE),
-                q975 = ~quantile(., 0.975, na.rm = TRUE),
-                q25 = ~quantile(., 0.25, na.rm = TRUE),
-                q75 = ~quantile(., 0.75, na.rm = TRUE)),
-           .names = "post_{.fn}_{.col}"),
+    across(post_mean, 
+           list(overall_mean = ~mean(., na.rm = TRUE),
+                overall_q025 = ~quantile(., 0.025, na.rm = TRUE),
+                overall_q975 = ~quantile(., 0.975, na.rm = TRUE),
+                overall_q25  = ~quantile(., 0.25, na.rm = TRUE),
+                overall_q75  = ~quantile(., 0.75, na.rm = TRUE)),
+           .names = "{.fn}"),
+    across(post_cv,
+           list(overall_mean = ~mean(., na.rm = TRUE),
+                overall_q025 = ~quantile(., 0.025, na.rm = TRUE),
+                overall_q975 = ~quantile(., 0.975, na.rm = TRUE)),
+           .names = "{.fn}_cv"),
+    
     .groups = "drop"
   ) %>%
-  # Join all reference data
-  left_join(select(true_params, scenario, param_idx, group, true_mean, true_cv),
-            by = c("scenario", "param_idx", "group")) %>%
-  left_join(select(empirical_params, scenario, simulation, param_idx, group,
+  left_join(select(true_params, scenario, param_idx, true_mean, true_cv), 
+            by = c("scenario", "param_idx")) %>%
+  left_join(select(empirical_params, scenario, simulation, param_idx, 
                    empirical_mean, empirical_cv),
-            by = c("scenario", "simulation", "param_idx", "group")) %>%
-  left_join(prob_error_summaries, by = c("scenario", "simulation")) %>%
-  left_join(true_prob_error, by = "scenario") %>%
-  # Calculate all metrics
+            by = c("scenario", "simulation", "param_idx")) %>%
   mutate(
-    # Bias - ground truth
-    delay_bias = post_mean_mean_delay - true_mean,
-    delay_cv_bias = post_mean_cv_delay - true_cv,
-    prob_error_bias = post_mean_prob_error - true_prob_error,
-    
-    # Bias - empirical
-    delay_bias_emp = post_mean_mean_delay - empirical_mean,
-    delay_cv_bias_emp = post_mean_cv_delay - empirical_cv,
-    
-    # Coverage - ground truth
-    delay_cov95 = true_mean >= post_q025_mean_delay & true_mean <= post_q975_mean_delay,
-    delay_cov50 = true_mean >= post_q25_mean_delay & true_mean <= post_q75_mean_delay,
-    delay_cv_cov95 = true_cv >= post_q025_cv_delay & true_cv <= post_q975_cv_delay,
-    delay_cv_cov50 = true_cv >= post_q25_cv_delay & true_cv <= post_q75_cv_delay,
-    prob_error_cov95 = true_prob_error >= post_q025_prob_error & true_prob_error <= post_q975_prob_error,
-    prob_error_cov50 = true_prob_error >= post_q25_prob_error & true_prob_error <= post_q75_prob_error,
-    
-    # Coverage - empirical
-    delay_cov95_emp = empirical_mean >= post_q025_mean_delay & empirical_mean <= post_q975_mean_delay,
-    delay_cov50_emp = empirical_mean >= post_q25_mean_delay & empirical_mean <= post_q75_mean_delay,
-    delay_cv_cov95_emp = empirical_cv >= post_q025_cv_delay & empirical_cv <= post_q975_cv_delay,
-    delay_cv_cov50_emp = empirical_cv >= post_q25_cv_delay & empirical_cv <= post_q75_cv_delay,
-    
-    # Credible interval width
-    delay_width95 = post_q975_mean_delay - post_q025_mean_delay,
-    delay_width50 = post_q75_mean_delay - post_q25_mean_delay,
-    delay_cv_width95 = post_q975_cv_delay - post_q025_cv_delay,
-    delay_cv_width50 = post_q75_cv_delay - post_q25_cv_delay,
-    prob_error_width95 = post_q975_prob_error - post_q025_prob_error,
-    prob_error_width50 = post_q75_prob_error - post_q025_prob_error
+    # bias
+    bias_gt = overall_mean - true_mean,
+    bias_emp = overall_mean - empirical_mean,
+    cv_bias_gt = overall_mean_cv - true_cv,
+    cv_bias_emp = overall_mean_cv - empirical_cv,
+    # 95% coverage
+    cov95_gt = true_mean >= overall_q025 & true_mean <= overall_q975,
+    cov95_emp = empirical_mean >= overall_q025 & empirical_mean <= overall_q975,
+    # 50% coverage
+    cov50_gt = true_mean >= overall_q25 & true_mean <= overall_q75,
+    cov50_emp = empirical_mean >= overall_q25 & empirical_mean <= overall_q75,
+    # CrI width
+    width95 = overall_q975 - overall_q025,
+    cv_width95 = overall_q975_cv - overall_q025_cv
   )
 
 # Aggregate across simulations -----------------------------------------------
 agg_summaries <- sim_summaries %>%
-  mutate(delay_label = factor(delay_label, levels = c("onset to report",
-                                                      "onset to death",
-                                                      "onset to hospitalisation",
-                                                      "hospitalisation to discharge",
-                                                      "hospitalisation to death"))
-         ) %>%
-  group_by(scenario, delay_label, group) %>%
+  group_by(scenario, param_label, group) %>%
   summarise(
     n_sims = n(),
-    # Bias metrics: average, SD, and RMSE across simulations
-    across(ends_with("_bias") | ends_with("_bias_emp"),
+    # Bias metrics: median, SD and RMSE for both ground truth and empirical bias
+    across(c(bias_gt, bias_emp, cv_bias_gt, cv_bias_emp),
            list(avg = ~median(., na.rm = TRUE), 
-                sd = ~sd(., na.rm = TRUE),
+                sd  = ~sd(., na.rm = TRUE),
                 rmse = ~sqrt(mean(.^2, na.rm = TRUE))),
            .names = "{.col}_{.fn}"),
     
-    # Coverage: proportion of simulations where CI contains true value
-    across(ends_with("_cov95") | ends_with("_cov50") | 
-             ends_with("_cov95_emp") | ends_with("_cov50_emp"),
+    # Coverage: proportion of simulations where CI contains the truth
+    across(c(cov95_gt, cov95_emp, cov50_gt, cov50_emp),
            ~mean(., na.rm = TRUE),
            .names = "{.col}_pct"),
     
     # Width: average CI width across simulations
-    across(ends_with("_width95") | ends_with("_width50"),
+    across(c(width95, cv_width95),
            ~mean(., na.rm = TRUE),
            .names = "{.col}_avg"),
+    
     .groups = "drop"
   )
 
@@ -295,10 +254,15 @@ saveRDS(agg_summaries, "figures/agg_summaries.rds")
 # Prob error trace
 trace_prob_error <- all_draws %>%
   filter(param_idx == 0, iteration > 100) %>%
-  left_join(true_prob_error, by = "scenario") %>%
-  ggplot(aes(x = iteration, y = prob_error)) +
+  left_join(
+    true_params %>% 
+      mutate(scenario = as.character(scenario)) %>% 
+      select(scenario, param_idx, true_mean), 
+    by = c("scenario", "param_idx")
+  ) %>%
+  ggplot(aes(x = iteration, y = post_mean)) +
   geom_line(colour = "dodgerblue", alpha = 0.3) +
-  geom_hline(aes(yintercept = true_prob_error), 
+  geom_hline(aes(yintercept = true_mean),
              linetype = "dashed", linewidth = 0.8) +
   facet_grid(cols = vars(scenario), scales = "free_y") +
   labs(y = "Probability of Error", x = "Iteration",
@@ -312,9 +276,9 @@ ggsave("figures/trace_error.pdf", trace_prob_error, width = 14, height = 4)
 # Delays
 make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols = FALSE) {
   p <- ggplot(data, aes(x = iteration, y = {{y_var}})) +
-    geom_line(alpha = 0.3, aes(colour = delay_label, 
-                               group = interaction(delay_label, simulation))) +
-    geom_hline(aes(yintercept = {{true_var}}, colour = delay_label),
+    geom_line(alpha = 0.3, aes(colour = param_label, 
+                               group = interaction(param_label, simulation))) +
+    geom_hline(aes(yintercept = {{true_var}}, colour = param_label),
                linetype = "dashed", linewidth = 0.8) +
     facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
     labs(y = y_label, x = "Iteration", colour = "Delay", title = title) +
@@ -324,11 +288,11 @@ make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols =
   
   if (add_symbols) {
     true_points <- data %>%
-      distinct(scenario, group, delay_label, {{true_var}}) %>%
+      distinct(scenario, group, param_label, {{true_var}}) %>%
       tidyr::crossing(iteration = c(min(data$iteration), max(data$iteration)))
     
     p <- p + geom_point(data = true_points,
-                        aes(x = iteration, y = {{true_var}}, fill = delay_label),
+                        aes(x = iteration, y = {{true_var}}, fill = param_label),
                         shape = 23, size = 3, colour = "black",
                         inherit.aes = FALSE, show.legend = FALSE)
   }
@@ -337,19 +301,26 @@ make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols =
 
 trace_data_base <- all_draws %>%
   filter(param_idx > 0, iteration > 100) %>%
-  left_join(select(true_params, scenario, param_idx, group, true_mean),
-            by = c("scenario", "param_idx", "group"))
+  mutate(scenario = as.character(scenario)) %>%
+  left_join(
+    true_params %>% 
+      mutate(scenario = as.character(scenario)) %>% 
+      select(scenario, param_idx, group, true_mean),
+    by = c("scenario", "param_idx", "group")
+  )
 
 trace_10 <- make_trace_plot(
   filter(trace_data_base, simulation <= 10),
-  mean_delay, true_mean,
+  post_mean,
+  true_mean,
   "Trace plots (first 10 simulations)", "Mean Delay",
   add_symbols = TRUE
 )
 
 trace_all <- make_trace_plot(
   trace_data_base,
-  mean_delay, true_mean,
+  post_mean,
+  true_mean,
   "Trace plots (all simulations)", "Mean Delay",
   add_symbols = TRUE
 )
@@ -358,19 +329,19 @@ ggsave("figures/trace_delays_10.pdf", trace_10, width = 14, height = 10)
 ggsave("figures/trace_delays_all.pdf", trace_all, width = 14, height = 10)
 
 # Bias plots -----------------------------------------------------------------
-
 make_bias_plot <- function(data, bias_avg_col, bias_sd_col, title, subtitle) {
-  ggplot(data, aes(x = delay_label, y = {{bias_avg_col}}, colour = delay_label)) +
+  ggplot(data, aes(x = param_label, y = {{bias_avg_col}}, colour = param_label)) +
     geom_point(size = 2) +
     geom_hline(yintercept = 0, linetype = "dashed", colour = "black") +
     geom_errorbar(aes(ymin = {{bias_avg_col}} - {{bias_sd_col}}, 
                       ymax = {{bias_avg_col}} + {{bias_sd_col}}), 
                   width = 0.3) +
-    facet_grid(rows = vars(group), cols = vars(scenario)) +
+    facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
     labs(title = title,
          subtitle = subtitle,
          y = "Median Bias",
-         x = "Delay") +
+         x = "",
+         colour = "Parameter") +
     theme_minimal() +
     theme(strip.text = element_text(size = 10, face = "bold"),
           axis.text.x = element_text(angle = 45, hjust = 1),
@@ -378,42 +349,89 @@ make_bias_plot <- function(data, bias_avg_col, bias_sd_col, title, subtitle) {
           panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 }
 
-# Compare to true mean delay (ground truth)
-bias_plot_gt <- make_bias_plot(agg_summaries,
-                               delay_bias_avg, delay_bias_sd,
-                               "Median Bias of Mean Delay Parameters (+/- SD)",
-                               "Compared to ground truth")
+make_error_bias_plot <- function(data, bias_col, sd_col, title, subtitle) {
+  ggplot(data, aes(x = scenario, y = {{bias_col}})) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_errorbar(aes(ymin = {{bias_col}} - {{sd_col}}, 
+                      ymax = {{bias_col}} + {{sd_col}}), 
+                  width = 0.15, colour = "midnightblue", alpha = 0.5) +
+    geom_point(size = 2.5, colour = "midnightblue") +
+    labs(title = title, subtitle = subtitle, y = "Median Bias", x = "") +
+    theme_minimal() +
+    theme(
+      panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)
+    )
+}
 
-ggsave("figures/bias_plot.pdf", bias_plot_gt, width = 10, height = 8)
+# Compare to true mean delay (ground truth)
+bias_plot_delays_gt <- agg_summaries %>%
+  filter(!param_label %in% "probability of error") %>%
+  make_bias_plot(bias_gt_avg, bias_gt_sd,
+                 "Median Bias of Delay Parameters (+/- SD)",
+                 "Compared to Ground Truth"
+                 )
 
 # Compare to mean delay of simulated true data (sample truth)
-bias_plot_emp <- make_bias_plot(agg_summaries,
-                                delay_bias_emp_avg, delay_bias_emp_sd,
-                                "Median Bias of Mean Delay Parameters (+/- SD)",
-                                "Compared to sample truth")
+bias_plot_delays_emp <- agg_summaries %>%
+  filter(!param_label %in% "probability of error") %>%
+  make_bias_plot(bias_emp_avg, bias_emp_sd,
+                 "Median Bias of Delay Parameters (+/- SD)",
+                 "Compared to Sample Truth"
+                 )
 
-ggsave("figures/bias_plot_empirical.pdf", bias_plot_emp, width = 10, height = 8)
+ggsave("figures/bias_plot_delays_gt.pdf", bias_plot_delays_gt, width = 10, height = 8)
+ggsave("figures/bias_plot_delays_empirical.pdf", bias_plot_delays_emp, width = 10, height = 8)
+
+
+# Compare error probability to ground truth
+bias_plot_error_gt <- agg_summaries %>%
+  filter(param_label %in% "probability of error") %>%
+  make_error_bias_plot(bias_gt_avg, bias_gt_sd, 
+                       "Median Bias: Probability of Error",
+                       "Compared to Ground Truth")
+
+# Compare error probability to sample truth
+bias_plot_error_emp <- agg_summaries %>%
+  filter(param_label %in% "probability of error") %>%
+  make_error_bias_plot(bias_emp_avg, bias_emp_sd, 
+                       "Median Bias: Probability of Error",
+                       "Compared to Sample Truth")
+
+ggsave("figures/bias_plot_error_gt.pdf", bias_plot_error_gt, width = 8, height = 4)
+ggsave("figures/bias_plot_error_emp.pdf", bias_plot_error_emp, width = 8, height = 4)
+
 
 # CV bias plots
-bias_plot_cv <- make_bias_plot(agg_summaries,
-                               delay_cv_bias_avg, delay_cv_bias_sd,
-                               "Mean Bias of CV Parameters (+/- SD)",
-                               "Compared to ground truth")
+bias_plot_cv_gt <- agg_summaries %>%
+  filter(!param_label %in% "probability of error") %>%
+  make_bias_plot(
+    cv_bias_gt_avg, cv_bias_gt_sd,
+    "Median Bias of CV Parameters (+/- SD)",
+    "Compared to Ground Truth"
+  )
 
-ggsave("figures/cv_bias_plot.pdf", bias_plot_cv, width = 10, height = 8)
+bias_plot_cv_emp <- agg_summaries %>%
+  filter(!param_label %in% "probability of error") %>%
+  make_bias_plot(
+    cv_bias_emp_avg, cv_bias_emp_sd,
+    "Median Bias of CV Parameters (+/- SD)",
+    "Compared to Sample Truth"
+  )
+
+ggsave("figures/cv_bias_plot_gt.pdf", bias_plot_cv_gt, width = 10, height = 8)
+ggsave("figures/cv_bias_plot_emp.pdf", bias_plot_cv_emp, width = 10, height = 8)
 
 # Coverage plots --------------------------------------------------------------
-
 make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
   coverage_data <- data %>%
-    select(scenario, group, delay_label, n_sims, 
+    select(scenario, group, param_label, n_sims, 
            cov95 = {{cov95_col}}, cov50 = {{cov50_col}}) %>%
     pivot_longer(cols = c(cov95, cov50),
                  names_to = "metric",
                  values_to = "coverage") %>%
     mutate(
       interval = ifelse(metric == "cov95", "95% CrI", "50% CrI"),
-      n_success = round(coverage * n_sims),
+      n_success = round(coverage * n_sims)
     ) %>%
     rowwise() %>%
     mutate(
@@ -425,71 +443,69 @@ make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
     select(-binom_ci, -n_success, -metric)
   
   ggplot(coverage_data, 
-              aes(x = delay_label, y = coverage, 
-                  colour = delay_label, shape = interval)) +
-    geom_point(size = 2) +
+         aes(x = param_label, y = coverage, 
+             colour = param_label, shape = interval)) +
+    geom_point(size = 2.5, position = position_dodge(width = 0.5)) +
     geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), 
-                  width = 0.3, alpha = 0.6) +
-    geom_hline(yintercept = 0.95, linetype = "dashed", colour = "black") +
-    geom_hline(yintercept = 0.50, linetype = "dashed", colour = "black") +
+                  width = 0.3, alpha = 0.6, 
+                  position = position_dodge(width = 0.5)) +
+    geom_hline(yintercept = 0.95, linetype = "dashed", colour = "seagreen", alpha = 0.8) +
+    geom_hline(yintercept = 0.50, linetype = "dashed", colour = "lightseagreen", alpha = 0.8) +
     facet_grid(rows = vars(group), cols = vars(scenario)) +
     labs(title = "Coverage of Credible Intervals",
          subtitle = subtitle,
          y = "Coverage Probability",
-         x = "Delay",
-         shape = "") +
-    ylim(0, 1) +
+         x = "",
+         shape = "Interval") +
+    scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
     theme_minimal() +
     theme(strip.text = element_text(size = 9, face = "bold"),
           axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "top",
-          panel.border = element_rect(colour = "darkgrey",
-                                      fill = NA, linewidth = 1)
-          ) +
+          panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)) +
     guides(colour = "none")
-
 }
 
 # Ground truth coverage
-gt_coverage <- make_coverage_plot(
-  agg_summaries, 
-  delay_cov95_pct, 
-  delay_cov50_pct,
-  "True parameters (ground truth). Error bars: 95% binomial confidence intervals"
-)
-
-ggsave("figures/coverage_plot.pdf", gt_coverage, width = 10, height = 8)
+gt_coverage <- agg_summaries %>%
+  filter(!param_label %in% "probability of error") %>%
+  make_coverage_plot(
+    cov95_gt_pct, 
+    cov50_gt_pct,
+    "True parameters (ground truth). Error bars: 95% binomial confidence intervals"
+  )
 
 # Empirical coverage
-emp_coverage <- make_coverage_plot(
-  agg_summaries, 
-  delay_cov95_emp_pct, 
-  delay_cov50_emp_pct,
-  "Empirical values (sample truth). Error bars: 95% binomial confidence intervals"
-)
+emp_coverage <- agg_summaries %>%
+  filter(!param_label %in% "probability of error") %>%
+  make_coverage_plot(
+    cov95_emp_pct, 
+    cov50_emp_pct,
+    "Empirical values (sample truth). Error bars: 95% binomial confidence intervals"
+    )
 
+ggsave("figures/coverage_plot.pdf", gt_coverage, width = 10, height = 8)
 ggsave("figures/coverage_plot_empirical.pdf", emp_coverage, width = 10, height = 8)
 
 # Posterior density plots ----------------------------------------------------
 
 # Aggregate draws across simulations for cleaner visualisation
 posterior_data <- all_draws %>%
-  mutate(delay_label = factor(delay_label, levels = c("onset to report",
-                                                      "onset to death",
-                                                      "onset to hospitalisation",
-                                                      "hospitalisation to discharge",
-                                                      "hospitalisation to death"))
-  ) %>%
-  filter(param_idx > 0, iteration > 100) %>%
-  left_join(select(true_params, scenario, param_idx, group, true_mean, true_cv),
-            by = c("scenario", "param_idx", "group"))
+  filter(param_label != "probability of error", iteration > 100) %>%
+  mutate(scenario = as.character(scenario)) %>%
+  left_join(
+    true_params %>% 
+      mutate(scenario = as.character(scenario)) %>% 
+      select(scenario, param_idx, group, true_mean, true_cv),
+    by = c("scenario", "param_idx", "group")
+  )
 
 # Mean delay posteriors
 mean_posterior_plot <- ggplot(posterior_data, 
-                              aes(x = mean_delay, fill = scenario, colour = scenario)) +
+                              aes(x = post_mean, fill = scenario, colour = scenario)) +
   geom_density(alpha = 0.3) +
   geom_vline(aes(xintercept = true_mean), linetype = "dashed", linewidth = 0.8) +
-  facet_grid(rows = vars(group), cols = vars(delay_label), scales = "free") +
+  facet_grid(rows = vars(group), cols = vars(param_label), scales = "free") +
   labs(title = "Posterior Distributions: Mean Delay",
        subtitle = "Dashed line = true value. Densities across all simulations.",
        x = "Mean Delay (days)",
@@ -501,14 +517,12 @@ mean_posterior_plot <- ggplot(posterior_data,
         axis.text.x = element_text(angle = 45, hjust = 1),
         panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
-ggsave("figures/posterior_mean_delay.pdf", mean_posterior_plot, width = 14, height = 10)
-
 # CV delay posteriors
 cv_posterior_plot <- ggplot(posterior_data, 
-                            aes(x = cv_delay, fill = scenario, colour = scenario)) +
+                            aes(x = post_cv, fill = scenario, colour = scenario)) +
   geom_density(alpha = 0.3) +
   geom_vline(aes(xintercept = true_cv), linetype = "dashed", linewidth = 0.8) +
-  facet_grid(rows = vars(group), cols = vars(delay_label), scales = "free") +
+  facet_grid(rows = vars(group), cols = vars(param_label), scales = "free") +
   labs(title = "Posterior Distributions: CV",
        subtitle = "Dashed line = true value. Densities across all simulations.",
        x = "Coefficient of Variation",
@@ -520,21 +534,27 @@ cv_posterior_plot <- ggplot(posterior_data,
         axis.text.x = element_text(angle = 45, hjust = 1),
         panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
+
+ggsave("figures/posterior_mean_delay.pdf", mean_posterior_plot, width = 14, height = 10)
 ggsave("figures/posterior_cv.pdf", cv_posterior_plot, width = 14, height = 10)
 
 
 # Error probability posteriors
-prob_error_posterior_data <- all_draws %>%
-  filter(param_idx == 0, iteration > 100) %>%
-  left_join(true_prob_error, by = "scenario")
-
-prob_error_posterior_plot <- ggplot(prob_error_posterior_data,
-                                    aes(x = prob_error, fill = scenario, colour = scenario)) +
+prob_error_posterior_plot <- all_draws %>%
+  filter(param_label %in% "probability of error", iteration > 100) %>%
+  left_join(
+    true_params %>% 
+      mutate(scenario = as.character(scenario)) %>% 
+      filter(param_idx == 0) %>% 
+      select(scenario, true_mean),
+    by = "scenario"
+  ) %>%
+  ggplot(aes(x = post_mean, fill = scenario, colour = scenario)) +
   geom_density(alpha = 0.3) +
-  geom_vline(aes(xintercept = true_prob_error), linetype = "dashed", linewidth = 0.8) +
+  geom_vline(aes(xintercept = true_mean), linetype = "dashed", linewidth = 0.8) +
   facet_wrap(~ scenario, scales = "free_y", nrow = 1) +
-  scale_x_continuous(expand = c(0, 0), limits = c(-0.001, NA)) +
-  scale_y_continuous(expand = c(0, 1)) +
+  scale_x_continuous(expand = c(0.005, 0), limits = c(0, NA)) +
+  scale_y_continuous(expand = c(0, 0.05)) +
   labs(title = "Posterior Distributions: Probability of Error",
        subtitle = "Dashed line = true value. Densities across all simulations.",
        x = "Probability of Error",
