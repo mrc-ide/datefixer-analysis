@@ -30,12 +30,19 @@ for (s in scenarios) {
 orderly_artefact(files = c("figures/trace_error.pdf",
                            "figures/trace_delays_10.pdf",
                            "figures/trace_delays_all.pdf",
-                           "figures/bias_plot.pdf",
-                           "figures/bias_plot_empirical.pdf",
+                           "figures/bias_plot_delays_gt.pdf",
+                           "figures/bias_plot_delays_emp.pdf",
+                           "figures/bias_plot_error_gt.pdf",
+                           "figures/bias_plot_error_emp.pdf",
+                           "figures/bias_plot_cv_gt.pdf",
+                           "figures/bias_plot_cv_emp.pdf",
                            "figures/coverage_plot.pdf",
-                           "figures/coverage_plot_empirical.pdf",
+                           "figures/coverage_plot_emp.pdf",
                            "figures/sim_summaries.rds",
-                           "figures/agg_summaries.rds"),
+                           "figures/agg_summaries.rds",
+                           "figures/posterior_mean_delay.pdf",
+                           "figures/posterior_cv.pdf",
+                           "figures/posterior_prob_error.pdf"),
                  description = "Analysis outputs")
 
 dir.create("figures", showWarnings = FALSE)
@@ -380,7 +387,7 @@ bias_plot_delays_emp <- agg_summaries %>%
                  )
 
 ggsave("figures/bias_plot_delays_gt.pdf", bias_plot_delays_gt, width = 10, height = 8)
-ggsave("figures/bias_plot_delays_empirical.pdf", bias_plot_delays_emp, width = 10, height = 8)
+ggsave("figures/bias_plot_delays_emp.pdf", bias_plot_delays_emp, width = 10, height = 8)
 
 
 # Compare error probability to ground truth
@@ -418,8 +425,8 @@ bias_plot_cv_emp <- agg_summaries %>%
     "Compared to Sample Truth"
   )
 
-ggsave("figures/cv_bias_plot_gt.pdf", bias_plot_cv_gt, width = 10, height = 8)
-ggsave("figures/cv_bias_plot_emp.pdf", bias_plot_cv_emp, width = 10, height = 8)
+ggsave("figures/bias_plot_cv_gt.pdf", bias_plot_cv_gt, width = 10, height = 8)
+ggsave("figures/bias_plot_cv_emp.pdf", bias_plot_cv_emp, width = 10, height = 8)
 
 # Coverage plots --------------------------------------------------------------
 make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
@@ -485,7 +492,7 @@ emp_coverage <- agg_summaries %>%
     )
 
 ggsave("figures/coverage_plot.pdf", gt_coverage, width = 10, height = 8)
-ggsave("figures/coverage_plot_empirical.pdf", emp_coverage, width = 10, height = 8)
+ggsave("figures/coverage_plot_emp.pdf", emp_coverage, width = 10, height = 8)
 
 # Posterior density plots ----------------------------------------------------
 
