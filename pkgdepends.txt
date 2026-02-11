@@ -3,7 +3,7 @@ repo::https://mrc-ide.r-universe.dev
 
 # Specific package versions
 mrc-ide/monty@mrc-6769
-mrc-ide/datefixer@update-simulation-groups
+mrc-ide/datefixer
 
 # CRAN
 orderly

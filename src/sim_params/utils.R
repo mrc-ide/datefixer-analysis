@@ -3,6 +3,8 @@
 build_sim_params <- function(
     scenario_id,
     n_per_group = rep(100, 4),
+    group_names = c("community-alive", "community-dead",
+                    "hospitalised-alive", "hospitalised-dead"),
     mean_scale = 1,
     cv_scale = 1,
     delay_dist = "gamma",
@@ -48,6 +50,7 @@ build_sim_params <- function(
   list(
     scenario_id = scenario_id,
     n_per_group = n_per_group,
+    group_names = group_names,
     delay_map = delay_map,
     delay_params = delay_params,
     error_params = error_params,

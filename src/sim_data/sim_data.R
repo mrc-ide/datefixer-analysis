@@ -26,11 +26,11 @@ simulate_scenario <- function(sim_params, nsims) {
   parallel::parLapply(cl, seq_len(nsims), function(i) {
     simulate_data(
       sim_params$n_per_group,
+      sim_params$group_names,
       sim_params$delay_map,
       sim_params$delay_params,
       sim_params$error_params,
-      sim_params$date_range,
-      simul_error = TRUE
+      sim_params$date_range
     )
   })
 }
