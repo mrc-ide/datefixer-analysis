@@ -17,3 +17,4 @@ ggplot2
 glue
 posterior
 stringr
+scales
