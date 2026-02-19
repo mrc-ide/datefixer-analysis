@@ -7,6 +7,7 @@ library(patchwork)
 library(purrr)
 library(ggplot2)
 library(glue)
+library(posterior)
 
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
@@ -27,25 +28,36 @@ for (s in scenarios) {
                      c("sim_estim_${s}.rds" = "sim_estim.rds"))
 }
 
-orderly_artefact(files = c("figures/trace_error.pdf",
-                           "figures/trace_delays_10.pdf",
-                           "figures/trace_delays_all.pdf",
-                           "figures/bias_plot_delays_gt.pdf",
-                           "figures/bias_plot_delays_emp.pdf",
-                           "figures/bias_plot_error_gt.pdf",
-                           "figures/bias_plot_error_emp.pdf",
-                           "figures/bias_plot_cv_gt.pdf",
-                           "figures/bias_plot_cv_emp.pdf",
-                           "figures/coverage_plot.pdf",
-                           "figures/coverage_plot_emp.pdf",
-                           "figures/sim_summaries.rds",
-                           "figures/agg_summaries.rds",
-                           "figures/posterior_mean_delay.pdf",
-                           "figures/posterior_cv.pdf",
-                           "figures/posterior_prob_error.pdf"),
+orderly_artefact(files = c("results/figures/trace_error.pdf",
+                           "results/figures/trace_delays_10.pdf",
+                           "results/figures/trace_delays_all.pdf",
+                           "results/figures/bias_plot_delays_gt.pdf",
+                           "results/figures/bias_plot_delays_emp.pdf",
+                           "results/figures/bias_plot_error_gt.pdf",
+                           "results/figures/bias_plot_error_emp.pdf",
+                           "results/figures/bias_plot_cv_gt.pdf",
+                           "results/figures/bias_plot_cv_emp.pdf",
+                           "results/figures/coverage_plot.pdf",
+                           "results/figures/coverage_plot_emp.pdf",
+                           "results/sim_summaries.rds",
+                           "results/agg_summaries.rds",
+                           "results/figures/posterior_mean_delay.pdf",
+                           "results/figures/posterior_cv.pdf",
+                           "results/figures/posterior_prob_error.pdf",
+                           "results/figures/observed_patterns.pdf",
+                           "results/observed_patterns.rds",
+                           "results/indiv_obs_summary.rds",
+                           "results/obs_pattern_summary.rds",
+                           "results/indiv_event_status.rds",
+                           "results/event_match_summary.rds",
+                           "results/event_confusion.rds",
+                           "results/pattern_confusion.rds",
+                           "results/convergence_issues.rds",
+                           "results/scenario_convergence.rds"),
                  description = "Analysis outputs")
 
-dir.create("figures", showWarnings = FALSE)
+dir.create("results", showWarnings = FALSE)
+dir.create("results/figures", showWarnings = FALSE)
 
 # Read in dependencies -------------------------------------------------------
 sim_params <- readRDS("sim_params.rds")
@@ -93,8 +105,8 @@ apply_factor_levels <- function(df) {
 }
 
 # Extract true parameter values ----------------------------------------------
-true_params <- map_dfr(scenarios, function(sn) {
-  params <- sim_params[[sn]]
+true_params <- map_dfr(scenarios, function(scenario_name) {
+  params <- sim_params[[scenario_name]]
   # Delays
   tibble(
     param_idx = 1:nrow(params$delay_params),
@@ -107,7 +119,7 @@ true_params <- map_dfr(scenarios, function(sn) {
       true_mean = params$error_params$prob_error,
       true_cv   = NA
     )) %>% 
-    mutate(scenario = sn)
+    mutate(scenario = scenario_name)
 }) %>%
   left_join(delay_mapping, by = "param_idx") %>%
   apply_factor_levels()
@@ -152,78 +164,98 @@ empirical_params <- map_dfr(scenarios, function(scenario_name) {
   apply_factor_levels()
 
 # MCMC Extraction ------------------------------------------------------------
-extract_draws <- function(mcmc_result, scenario_name, sim_idx) {
-  pars <- mcmc_result$pars
-  n_iter <- dim(pars)[2]
-  n_chains <- dim(pars)[3]
-  
-  iter_chain <- expand_grid(
-    iteration = 1:n_iter,
-    chain = 1:n_chains
-  )
-  
-  map_dfr(0:9, function(i) {
-    p_name <- if(i == 0) "prob_error" else paste0("mean_delay", i)
-    cv_name <- if(i == 0) NULL else paste0("cv_delay", i)
+sim_summaries <- map_dfr(names(sim_estim), function(scenario_name) {
+  map_dfr(seq_along(sim_estim[[scenario_name]]), function(sim_idx) {
     
-    iter_chain %>%
+    # pars array [parameters, iterations, chains]
+    pars_array <- sim_estim[[scenario_name]][[sim_idx]]$pars
+    
+    # transpose to [iterations, chains, parameters] for posterior package
+    pars_transposed <- aperm(pars_array, c(2, 3, 1))
+
+    # Convert to draws format
+    draws_df <- as_draws_df(pars_transposed)
+    
+    summarise_draws(
+      draws_df, 
+      "mean", 
+      ~quantile(.x, probs = c(0.025, 0.25, 0.75, 0.975), na.rm = TRUE),
+      "rhat", "ess_bulk", "ess_tail"
+    ) %>%
+      rename(
+        overall_mean = mean,
+        overall_q025 = `2.5%`,
+        overall_q25  = `25%`,
+        overall_q75  = `75%`,
+        overall_q975 = `97.5%`
+      ) %>%
+      filter(grepl("^(prob_error|mean_delay|cv_delay)", variable)) %>%
       mutate(
         scenario = scenario_name,
         simulation = sim_idx,
-        param_idx = i,
-        post_mean = as.vector(pars[p_name, , ]),
-        post_cv   = if(!is.null(cv_name)) as.vector(pars[cv_name, , ]) else NA
-      )
+        param_idx = case_when(
+          variable == "prob_error" ~ 0,
+          grepl("mean_delay|cv_delay", variable) ~ 
+            as.numeric(str_extract(variable, "\\d+")),
+          TRUE ~ NA
+        ),
+        type = case_when(
+          grepl("^cv_delay", variable) ~ "cv",
+          TRUE ~ "mean"
+        )
+      ) %>%
+      select(-variable)
   })
-}
+})
 
-# Extract all and apply factors
-all_draws <- map_dfr(names(sim_estim), function(sn) {
-  map_dfr(seq_along(sim_estim[[sn]]), 
-          ~extract_draws(sim_estim[[sn]][[.x]], sn, .x))
-}) %>%
+# Separate mean and cv, then join
+sim_summaries_mean <- sim_summaries %>%
+  filter(type == "mean") %>%
+  select(-type) %>%
+  rename(
+    overall_mean_mean = overall_mean,
+    overall_q025_mean = overall_q025,
+    overall_q25_mean = overall_q25,
+    overall_q75_mean = overall_q75,
+    overall_q975_mean = overall_q975,
+    rhat_mean = rhat,
+    ess_bulk_mean = ess_bulk,
+    ess_tail_mean = ess_tail
+  )
+
+sim_summaries_cv <- sim_summaries %>%
+  filter(type == "cv") %>%
+  select(scenario, simulation, param_idx, 
+         overall_mean_cv = overall_mean,
+         overall_q025_cv = overall_q025,
+         overall_q975_cv = overall_q975,
+         rhat_cv = rhat,
+         ess_bulk_cv = ess_bulk,
+         ess_tail_cv = ess_tail)
+
+sim_summaries <- sim_summaries_mean %>%
+  left_join(sim_summaries_cv, by = c("scenario", "simulation", "param_idx")) %>%
   left_join(delay_mapping, by = "param_idx") %>%
-  apply_factor_levels()
-
-
-# Calculate posterior summaries per simulation -------------------------------
-sim_summaries <- all_draws %>%
-  group_by(scenario, simulation, param_idx, param_label, group) %>%
-  summarise(
-    across(post_mean, 
-           list(overall_mean = ~mean(., na.rm = TRUE),
-                overall_q025 = ~quantile(., 0.025, na.rm = TRUE),
-                overall_q975 = ~quantile(., 0.975, na.rm = TRUE),
-                overall_q25  = ~quantile(., 0.25, na.rm = TRUE),
-                overall_q75  = ~quantile(., 0.75, na.rm = TRUE)),
-           .names = "{.fn}"),
-    across(post_cv,
-           list(overall_mean = ~mean(., na.rm = TRUE),
-                overall_q025 = ~quantile(., 0.025, na.rm = TRUE),
-                overall_q975 = ~quantile(., 0.975, na.rm = TRUE)),
-           .names = "{.fn}_cv"),
-    
-    .groups = "drop"
-  ) %>%
+  apply_factor_levels() %>%
   left_join(select(true_params, scenario, param_idx, true_mean, true_cv), 
             by = c("scenario", "param_idx")) %>%
   left_join(select(empirical_params, scenario, simulation, param_idx, 
                    empirical_mean, empirical_cv),
             by = c("scenario", "simulation", "param_idx")) %>%
   mutate(
-    # bias
-    bias_gt = overall_mean - true_mean,
-    bias_emp = overall_mean - empirical_mean,
+    # Bias
+    bias_gt = overall_mean_mean - true_mean,
+    bias_emp = overall_mean_mean - empirical_mean,
     cv_bias_gt = overall_mean_cv - true_cv,
     cv_bias_emp = overall_mean_cv - empirical_cv,
-    # 95% coverage
-    cov95_gt = true_mean >= overall_q025 & true_mean <= overall_q975,
-    cov95_emp = empirical_mean >= overall_q025 & empirical_mean <= overall_q975,
-    # 50% coverage
-    cov50_gt = true_mean >= overall_q25 & true_mean <= overall_q75,
-    cov50_emp = empirical_mean >= overall_q25 & empirical_mean <= overall_q75,
-    # CrI width
-    width95 = overall_q975 - overall_q025,
+    # Coverage
+    cov95_gt = true_mean >= overall_q025_mean & true_mean <= overall_q975_mean,
+    cov95_emp = empirical_mean >= overall_q025_mean & empirical_mean <= overall_q975_mean,
+    cov50_gt = true_mean >= overall_q25_mean & true_mean <= overall_q75_mean,
+    cov50_emp = empirical_mean >= overall_q25_mean & empirical_mean <= overall_q75_mean,
+    cv_cov95_gt = true_cv >= overall_q025_cv & true_cv <= overall_q975_cv,
+    # Width
+    width95 = overall_q975_mean - overall_q025_mean,
     cv_width95 = overall_q975_cv - overall_q025_cv
   )
 
@@ -232,31 +264,94 @@ agg_summaries <- sim_summaries %>%
   group_by(scenario, param_label, group) %>%
   summarise(
     n_sims = n(),
-    # Bias metrics: median, SD and RMSE for both ground truth and empirical bias
+    avg_rhat = mean(rhat_mean, na.rm = TRUE),
+    min_ess = min(ess_bulk_mean, na.rm = TRUE),
     across(c(bias_gt, bias_emp, cv_bias_gt, cv_bias_emp),
            list(avg = ~median(., na.rm = TRUE), 
-                sd  = ~sd(., na.rm = TRUE),
+                sd = ~sd(., na.rm = TRUE),
                 rmse = ~sqrt(mean(.^2, na.rm = TRUE))),
            .names = "{.col}_{.fn}"),
-    
-    # Coverage: proportion of simulations where CI contains the truth
     across(c(cov95_gt, cov95_emp, cov50_gt, cov50_emp),
            ~mean(., na.rm = TRUE),
            .names = "{.col}_pct"),
-    
-    # Width: average CI width across simulations
     across(c(width95, cv_width95),
            ~mean(., na.rm = TRUE),
            .names = "{.col}_avg"),
-    
+    .groups = "drop"
+  )
+
+# Convergence diagnostics ------------------------------------------------------
+
+rhat_threshold <- 1.05
+ess_threshold <- 400
+
+agg_summaries <- agg_summaries %>%
+  mutate(
+    rhat_ok = avg_rhat <= rhat_threshold,
+    ess_ok = min_ess >= ess_threshold,
+    converged = rhat_ok & ess_ok
+  )
+
+# problematic parameters
+convergence_issues <- agg_summaries %>%
+  filter(!converged) %>%
+  select(scenario, param_label, group, avg_rhat, min_ess, 
+         rhat_ok, ess_ok) %>%
+  arrange(desc(avg_rhat))
+
+# overall convergence by scenario
+scenario_convergence <- agg_summaries %>%
+  group_by(scenario) %>%
+  summarise(
+    n_params = n(),
+    n_converged = sum(converged),
+    pct_converged = n_converged / n_params * 100,
+    worst_rhat = max(avg_rhat),
+    worst_ess = min(min_ess),
     .groups = "drop"
   )
 
 # Save outputs ---------------------------------------------------------------
-saveRDS(sim_summaries, "figures/sim_summaries.rds")
-saveRDS(agg_summaries, "figures/agg_summaries.rds")
+saveRDS(sim_summaries, "results/sim_summaries.rds")
+saveRDS(agg_summaries, "results/agg_summaries.rds")
+saveRDS(convergence_issues, "results/convergence_issues.rds")
+saveRDS(scenario_convergence, "results/scenario_convergence.rds")
 
 # Trace plots ----------------------------------------------------------------
+all_draws <- map_dfr(names(sim_estim), function(scenario_name) {
+  map_dfr(seq_along(sim_estim[[scenario_name]]), function(sim_idx) {
+    
+    # transpose pars array
+    pars_array <- sim_estim[[scenario_name]][[sim_idx]]$pars
+    pars_transposed <- aperm(pars_array, c(2, 3, 1))
+    
+    as_draws_df(pars_transposed) %>%
+      as_tibble() %>%
+      select(.chain, .iteration, 
+             matches("^(prob_error|mean_delay|cv_delay)")) %>%
+      pivot_longer(cols = matches("^(prob_error|mean_delay|cv_delay)"),
+                   names_to = "variable",
+                   values_to = "value") %>%
+      mutate(
+        scenario = scenario_name,
+        simulation = sim_idx,
+        chain = .chain,
+        iteration = .iteration,
+        param_idx = case_when(
+          variable == "prob_error" ~ 0,
+          grepl("mean_delay|cv_delay", variable) ~ 
+            as.numeric(str_extract(variable, "\\d+")),
+          TRUE ~ NA
+        ),
+        type = ifelse(grepl("^cv_delay", variable), "cv", "mean")
+      ) %>%
+      select(-variable, -.chain, -.iteration)
+  })
+}) %>%
+  pivot_wider(names_from = type, values_from = value) %>%
+  rename(post_mean = mean, post_cv = cv) %>%
+  left_join(delay_mapping, by = "param_idx") %>%
+  apply_factor_levels()
 
 # Prob error trace
 trace_prob_error <- all_draws %>%
@@ -267,18 +362,21 @@ trace_prob_error <- all_draws %>%
       select(scenario, param_idx, true_mean), 
     by = c("scenario", "param_idx")
   ) %>%
-  ggplot(aes(x = iteration, y = post_mean)) +
-  geom_line(colour = "dodgerblue", alpha = 0.3) +
+  mutate(sim_chain = paste(simulation, chain, sep = "_")) %>%
+  ggplot(aes(x = iteration, y = post_mean,
+             colour = factor(chain), group = sim_chain)) +
+  geom_line(alpha = 0.3) +
   geom_hline(aes(yintercept = true_mean),
-             linetype = "dashed", linewidth = 0.8) +
+             linetype = "dashed", linewidth = 0.8, colour = "black") +
   facet_grid(cols = vars(scenario), scales = "free_y") +
   labs(y = "Probability of Error", x = "Iteration",
-       title = "Trace plots for probability of error") +
+       title = "Trace plots for probability of error (100 simulations)",
+       colour = "Chain") +
   theme_minimal() +
   theme(strip.text = element_text(size = 8),
         panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
-ggsave("figures/trace_error.pdf", trace_prob_error, width = 14, height = 4)
+ggsave("results/figures/trace_error.pdf", trace_prob_error, width = 14, height = 4)
 
 # Delays
 make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols = FALSE) {
@@ -296,7 +394,7 @@ make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols =
   if (add_symbols) {
     true_points <- data %>%
       distinct(scenario, group, param_label, {{true_var}}) %>%
-      tidyr::crossing(iteration = c(min(data$iteration), max(data$iteration)))
+      crossing(iteration = c(min(data$iteration), max(data$iteration)))
     
     p <- p + geom_point(data = true_points,
                         aes(x = iteration, y = {{true_var}}, fill = param_label),
@@ -332,8 +430,8 @@ trace_all <- make_trace_plot(
   add_symbols = TRUE
 )
 
-ggsave("figures/trace_delays_10.pdf", trace_10, width = 14, height = 10)
-ggsave("figures/trace_delays_all.pdf", trace_all, width = 14, height = 10)
+ggsave("results/figures/trace_delays_10.pdf", trace_10, width = 14, height = 10)
+ggsave("results/figures/trace_delays_all.pdf", trace_all, width = 14, height = 10)
 
 # Bias plots -----------------------------------------------------------------
 make_bias_plot <- function(data, bias_avg_col, bias_sd_col, title, subtitle) {
@@ -386,8 +484,8 @@ bias_plot_delays_emp <- agg_summaries %>%
                  "Compared to Sample Truth"
                  )
 
-ggsave("figures/bias_plot_delays_gt.pdf", bias_plot_delays_gt, width = 10, height = 8)
-ggsave("figures/bias_plot_delays_emp.pdf", bias_plot_delays_emp, width = 10, height = 8)
+ggsave("results/figures/bias_plot_delays_gt.pdf", bias_plot_delays_gt, width = 10, height = 8)
+ggsave("results/figures/bias_plot_delays_emp.pdf", bias_plot_delays_emp, width = 10, height = 8)
 
 
 # Compare error probability to ground truth
@@ -404,8 +502,8 @@ bias_plot_error_emp <- agg_summaries %>%
                        "Median Bias: Probability of Error",
                        "Compared to Sample Truth")
 
-ggsave("figures/bias_plot_error_gt.pdf", bias_plot_error_gt, width = 8, height = 4)
-ggsave("figures/bias_plot_error_emp.pdf", bias_plot_error_emp, width = 8, height = 4)
+ggsave("results/figures/bias_plot_error_gt.pdf", bias_plot_error_gt, width = 8, height = 4)
+ggsave("results/figures/bias_plot_error_emp.pdf", bias_plot_error_emp, width = 8, height = 4)
 
 
 # CV bias plots
@@ -425,8 +523,8 @@ bias_plot_cv_emp <- agg_summaries %>%
     "Compared to Sample Truth"
   )
 
-ggsave("figures/bias_plot_cv_gt.pdf", bias_plot_cv_gt, width = 10, height = 8)
-ggsave("figures/bias_plot_cv_emp.pdf", bias_plot_cv_emp, width = 10, height = 8)
+ggsave("results/figures/bias_plot_cv_gt.pdf", bias_plot_cv_gt, width = 10, height = 8)
+ggsave("results/figures/bias_plot_cv_emp.pdf", bias_plot_cv_emp, width = 10, height = 8)
 
 # Coverage plots --------------------------------------------------------------
 make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
@@ -456,8 +554,10 @@ make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
     geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), 
                   width = 0.3, alpha = 0.6, 
                   position = position_dodge(width = 0.5)) +
-    geom_hline(yintercept = 0.95, linetype = "dashed", colour = "seagreen", alpha = 0.8) +
-    geom_hline(yintercept = 0.50, linetype = "dashed", colour = "lightseagreen", alpha = 0.8) +
+    geom_hline(yintercept = 0.95, linetype = "dashed",
+               colour = "seagreen", alpha = 0.8) +
+    geom_hline(yintercept = 0.50, linetype = "dashed",
+               colour = "lightseagreen", alpha = 0.8) +
     facet_grid(rows = vars(group), cols = vars(scenario)) +
     labs(title = "Coverage of Credible Intervals",
          subtitle = subtitle,
@@ -469,7 +569,8 @@ make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
     theme(strip.text = element_text(size = 9, face = "bold"),
           axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "top",
-          panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)) +
+          panel.border = element_rect(colour = "darkgrey", fill = NA,
+                                      linewidth = 1)) +
     guides(colour = "none")
 }
 
@@ -491,8 +592,8 @@ emp_coverage <- agg_summaries %>%
     "Empirical values (sample truth). Error bars: 95% binomial confidence intervals"
     )
 
-ggsave("figures/coverage_plot.pdf", gt_coverage, width = 10, height = 8)
-ggsave("figures/coverage_plot_emp.pdf", emp_coverage, width = 10, height = 8)
+ggsave("results/figures/coverage_plot.pdf", gt_coverage, width = 10, height = 8)
+ggsave("results/figures/coverage_plot_emp.pdf", emp_coverage, width = 10, height = 8)
 
 # Posterior density plots ----------------------------------------------------
 
@@ -542,8 +643,8 @@ cv_posterior_plot <- ggplot(posterior_data,
         panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
 
-ggsave("figures/posterior_mean_delay.pdf", mean_posterior_plot, width = 14, height = 10)
-ggsave("figures/posterior_cv.pdf", cv_posterior_plot, width = 14, height = 10)
+ggsave("results/figures/posterior_mean_delay.pdf", mean_posterior_plot, width = 14, height = 10)
+ggsave("results/figures/posterior_cv.pdf", cv_posterior_plot, width = 14, height = 10)
 
 
 # Error probability posteriors
@@ -573,4 +674,340 @@ prob_error_posterior_plot <- all_draws %>%
         legend.position = "none",
         panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
-ggsave("figures/posterior_prob_error.pdf", prob_error_posterior_plot, width = 14, height = 4)
+ggsave("results/figures/posterior_prob_error.pdf",
+       prob_error_posterior_plot, width = 14, height = 4)
+
+
+# -----------------------------------------------------------------------------
+# Look at individuals:
+# how often are different events correctly identified for different groups
+# how often are errors correctly identified
+# how many indiv. have all correctly observed dates
+# how many indiv. have different combinations of errors and missing dates
+
+apply_scenario_labels <- function(df) {
+  df %>% 
+    mutate(
+      scenario = factor(recode(scenario, !!!scenario_labels),
+                        levels = unname(scenario_labels)),
+      group = factor(group, levels = c("community-alive", "community-dead", 
+                                       "hospitalised-alive", "hospitalised-dead"))
+    )
+}
+
+observed_patterns <- map_dfr(scenarios, function(scenario_name) {
+  map_dfr(seq_along(sim_data[[scenario_name]]), function(sim_idx) {
+    
+    sim_obj <- sim_data[[scenario_name]][[sim_idx]]
+    
+    obs <- sim_obj$observed_data %>%
+      mutate(scenario = scenario_name, simulation = sim_idx)
+    
+    err <- sim_obj$error_indicators %>%
+      select(-id, -group)
+    
+    # Classify each date based on group
+    obs %>%
+      mutate(
+        # Onset should exist for all groups
+        onset = case_when(
+          is.na(onset) ~ "missing",
+          err$onset == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        # Hospitalisation only for hospitalised groups
+        hospitalisation = case_when(
+          group %in% c("community-alive", "community-dead") ~ NA,
+          is.na(hospitalisation) ~ "missing",
+          err$hospitalisation == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        # Report should exist for all groups
+        report = case_when(
+          is.na(report) ~ "missing",
+          err$report == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        # Death only for dead groups
+        death = case_when(
+          group %in% c("community-alive", "hospitalised-alive") ~ NA,
+          is.na(death) ~ "missing",
+          err$death == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        # Discharge only for hospitalised-alive
+        discharge = case_when(
+          group != "hospitalised-alive" ~ NA,
+          is.na(discharge) ~ "missing",
+          err$discharge == TRUE ~ "error",
+          TRUE ~ "correct"
+        )
+      ) %>%
+      select(id, group, scenario, simulation, onset,
+             hospitalisation, report, death, discharge)
+  })
+}) %>%
+  apply_scenario_labels()
+
+# Summarise per individual
+indiv_obs_summary <- observed_patterns %>%
+  pivot_longer(cols = c(onset, hospitalisation, report, death, discharge), 
+               names_to = "event", 
+               values_to = "status") %>%
+  filter(!is.na(status)) %>%
+  group_by(scenario, simulation, id, group) %>%
+  summarise(
+    n_events = n(),
+    n_correct = sum(status == "correct"),
+    n_errors = sum(status == "error"),
+    n_missing = sum(status == "missing"),
+    all_correct = all(status == "correct"),
+    any_error = any(status == "error"),
+    any_missing = any(status == "missing"),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    pattern = case_when(
+      n_correct == n_events ~ "All correct",
+      n_errors == n_events ~ "All errors",
+      n_missing == n_events ~ "All missing",
+      TRUE ~ paste0(
+        ifelse(n_correct > 0, paste0(n_correct, " correct"), ""),
+        ifelse(n_correct > 0 & (n_errors > 0 | n_missing > 0), " + ", ""),
+        ifelse(n_errors > 0, paste0(n_errors, " error",
+                                    ifelse(n_errors > 1, "s", "")), ""),
+        ifelse(n_errors > 0 & n_missing > 0, " + ", ""),
+        ifelse(n_missing > 0, paste0(n_missing, " missing"), "")
+      )
+    )
+  )
+
+# Patterns across individuals
+obs_pattern_summary <- indiv_obs_summary %>%
+  group_by(scenario, group, pattern) %>%
+  summarise(n_individuals = n(), .groups = "drop") %>%
+  group_by(scenario, group) %>%
+  mutate(
+    total = sum(n_individuals),
+    pct = n_individuals / total * 100
+  ) %>%
+  ungroup() %>%
+  arrange(scenario, group, desc(n_individuals))
+
+  # rough visualisation
+p_obs_patterns <- obs_pattern_summary %>%
+  ggplot(aes(x = reorder(pattern, n_individuals), y = pct, fill = pattern)) +
+  geom_col() +
+  geom_text(aes(label = sprintf("%.1f%%", pct)), hjust = -0.1, size = 2.5) +
+  coord_flip() +
+  facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
+  labs(
+    title = "Check simulated error/missingness patterns",
+    x = "", y = "Percentage of Individuals (%)", fill = "Pattern"
+  ) +
+  theme_minimal() +
+  theme(
+    strip.text = element_text(size = 9, face = "bold"),
+    legend.position = "none",
+    panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)
+  )
+
+ggsave("results/figures/observed_patterns.pdf",
+       p_obs_patterns, width = 14, height = 7)
+
+# True vs estimated error status (excluding missing)
+event_names <- c("onset", "hospitalisation", "report", "death", "discharge")
+
+indiv_event_status <- map_dfr(scenarios, function(scenario_name) {
+  map_dfr(seq_along(sim_estim[[scenario_name]]), function(sim_idx) {
+    
+    true_errors <- sim_data[[scenario_name]][[sim_idx]]$error_indicators
+    obs_data <- sim_data[[scenario_name]][[sim_idx]]$observed_data
+    
+    # estimated error indicators [individuals, events, iterations, chains]
+    est_error_array <- sim_estim[[scenario_name]][[sim_idx]]$data$error_indicators
+
+    # posterior probability of error (mean across iterations and chains)
+    post_prob_error <- apply(est_error_array, c(1, 2), mean, na.rm = TRUE)
+    
+    # classify as error based on posterior probability
+    #est_is_error <- post_prob_error > 0.45
+    est_is_error <- post_prob_error > 0.9
+    
+    tibble(
+      scenario = scenario_name,
+      simulation = sim_idx,
+      id = true_errors$id,
+      group = true_errors$group
+    ) %>%
+      mutate(
+        # Onset
+        true_onset = case_when(
+          is.na(obs_data$onset) ~ "missing",
+          true_errors$onset == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        estimated_onset = case_when(
+          est_is_error[, 1] == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        match_onset = ifelse(
+          true_onset == "missing", NA,
+          true_onset == estimated_onset
+          ),
+        
+        # Hospitalisation
+        true_hospitalisation = case_when(
+          is.na(true_errors$hospitalisation) ~ NA,
+          is.na(obs_data$hospitalisation) ~ "missing",
+          true_errors$hospitalisation == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        estimated_hospitalisation = case_when(
+          is.na(true_errors$hospitalisation) ~ NA,
+          est_is_error[, 2] == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        match_hospitalisation = ifelse(
+          true_hospitalisation == "missing" | is.na(true_hospitalisation), NA,
+          true_hospitalisation == estimated_hospitalisation
+        ),
+        
+        # Report
+        true_report = case_when(
+          is.na(obs_data$report) ~ "missing",
+          true_errors$report == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        estimated_report = case_when(
+          est_is_error[, 3] == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        match_report = ifelse(
+          true_report == "missing", NA,
+          true_report == estimated_report
+        ),
+        
+        # Death
+        true_death = case_when(
+          is.na(true_errors$death) ~ NA,
+          is.na(obs_data$death) ~ "missing",
+          true_errors$death == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        estimated_death = case_when(
+          is.na(true_errors$death) ~ NA,
+          est_is_error[, 4] == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        match_death = ifelse(
+          true_death == "missing" | is.na(true_death), NA,
+          true_death == estimated_death
+        ),
+        
+        # Discharge
+        true_discharge = case_when(
+          is.na(true_errors$discharge) ~ NA,
+          is.na(obs_data$discharge) ~ "missing",
+          true_errors$discharge == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        estimated_discharge = case_when(
+          is.na(true_errors$discharge) ~ NA,
+          est_is_error[, 5] == TRUE ~ "error",
+          TRUE ~ "correct"
+        ),
+        match_discharge = ifelse(
+          true_discharge == "missing" | is.na(true_discharge), NA,
+          true_discharge == estimated_discharge
+        )
+      )
+  })
+}) %>%
+  apply_scenario_labels()
+
+indiv_event_status_with_pattern <- indiv_event_status %>%
+  left_join(
+    indiv_obs_summary %>% 
+      select(scenario, simulation, id, pattern), 
+    by = c("scenario", "simulation", "id")
+  )
+
+# % of true and estimated error classifications that match for each event
+event_match_summary <- indiv_event_status %>%
+  pivot_longer(cols = starts_with("match_"),
+               names_to = "event",
+               values_to = "match") %>%
+  mutate(event = gsub("match_", "", event)) %>%
+  filter(!is.na(match)) %>%
+  group_by(scenario, group, event) %>%
+  summarise(
+    n_total = n(),
+    n_match = sum(match, na.rm = TRUE),
+    pct_match = n_match / n_total * 100,
+    .groups = "drop"
+  )
+
+# Confusion matrix for each event
+event_confusion <- indiv_event_status %>%
+  pivot_longer(cols = c(starts_with("true_"), starts_with("estimated_")),
+               names_to = c(".value", "event"),
+               names_pattern = "(true|estimated)_(.*)") %>%
+  filter(!is.na(true), true != "missing") %>%
+  group_by(scenario, group, event, true, estimated) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  pivot_wider(names_from = estimated, 
+              values_from = n, 
+              values_fill = 0,
+              names_prefix = "pred_") %>%
+  mutate(
+    total_actual = pred_correct + pred_error,
+    pct_accuracy = case_when(
+      true == "correct" ~ (pred_correct / total_actual) * 100,
+      true == "error" ~ (pred_error / total_actual) * 100
+    ),
+    metric_type = case_when(
+      true == "correct" ~ "Specificity",
+      true == "error" ~ "Sensitivity"
+    )
+  ) %>%
+  select(scenario, group, event, true_status = true, pred_correct, pred_error,
+         total_actual, pct_accuracy, metric_type) %>%
+  arrange(scenario, group, event, desc(true_status))
+
+# Confusion matrix with pattern
+pattern_group_confusion <- indiv_event_status %>%
+  left_join(
+    indiv_obs_summary %>% 
+      select(scenario, simulation, id, pattern), 
+    by = c("scenario", "simulation", "id")
+  ) %>%
+  pivot_longer(
+    cols = c(starts_with("true_"), starts_with("estimated_")),
+    names_to = c(".value", "event"),
+    names_pattern = "(true|estimated)_(.*)"
+  ) %>%
+  filter(!is.na(true), true != "missing") %>%
+  group_by(scenario, group, pattern, true, estimated) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  pivot_wider(
+    names_from = estimated, 
+    values_from = count, 
+    values_fill = 0,
+    names_prefix = "pred_"
+  ) %>%
+  mutate(
+    total_actual = pred_correct + pred_error,
+    pct_accuracy = case_when(
+      true == "correct" ~ (pred_correct / total_actual) * 100,
+      true == "error" ~ (pred_error / total_actual) * 100
+    )
+  )
+
+saveRDS(observed_patterns, "results/observed_patterns.rds")
+saveRDS(indiv_obs_summary, "results/indiv_obs_summary.rds")
+saveRDS(obs_pattern_summary, "results/obs_pattern_summary.rds")
+saveRDS(indiv_event_status, "results/indiv_event_status.rds")
+saveRDS(event_match_summary, "results/event_match_summary.rds")
+saveRDS(event_confusion, "results/event_confusion.rds")
+saveRDS(pattern_group_confusion, "results/pattern_confusion.rds")
