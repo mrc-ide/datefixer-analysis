@@ -15,3 +15,5 @@ purrr
 patchwork
 ggplot2
 glue
+posterior
+stringr
