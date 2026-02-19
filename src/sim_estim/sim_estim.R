@@ -35,7 +35,9 @@ if (is.null(selected_scenario) || identical(selected_scenario, "all")) {
 
 # MCMC settings ---------------------------------------------------------------
 
-control <- mcmc_control(earliest_possible_date = "2014-01-01",
+control <- mcmc_control(n_steps = 5000,
+                        n_chains = 4,
+                        earliest_possible_date = "2014-01-01",
                         latest_possible_date = "2015-01-01")
 sampler <- datefixer_sampler(control)
 hyperparameters <- datefixer_hyperparameters()
@@ -67,7 +69,7 @@ mcmc_samples <- parLapply(cl, seq_along(sim_data_list), function(sim) {
   #message("Processing sim ", sim, " for scenario: ", scenario)
 
   model <- datefixer_model(x$observed_data, delay_map, hyperparameters, control)
-  mcmc_run(model, sampler)
+  mcmc_run(model, sampler, control = control)
 
 })
 
