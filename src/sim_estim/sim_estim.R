@@ -36,6 +36,7 @@ if (is.null(selected_scenario) || identical(selected_scenario, "all")) {
 # MCMC settings ---------------------------------------------------------------
 
 control <- mcmc_control(n_steps = 5000,
+                        burnin = 500,
                         n_chains = 4,
                         earliest_possible_date = "2014-01-01",
                         latest_possible_date = "2015-01-01")
