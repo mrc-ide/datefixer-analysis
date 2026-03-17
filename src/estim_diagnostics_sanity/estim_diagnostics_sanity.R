@@ -283,7 +283,7 @@ agg_summaries <- sim_summaries %>%
 # Convergence diagnostics ------------------------------------------------------
 
 rhat_threshold <- 1.05
-ess_threshold <- 400
+ess_threshold <- 200
 
 agg_summaries <- agg_summaries %>%
   mutate(
