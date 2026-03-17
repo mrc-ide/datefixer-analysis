@@ -18,7 +18,7 @@ baseline <- tibble(
   group_size = 100,
   mean_scale = 1,
   cv_scale = 1,
-  delay_dist = "gamma",
+  delay_distribution = "gamma",
   prop_missing = 0.2,
   prob_error = 0.05,
   error_model = "naive"
@@ -52,13 +52,13 @@ scenarios <- bind_rows(
     scenario_id = "high_error",
     prob_error = 0.2
   ),
-  # baseline %>% mutate(
-  #   scenario_id = "lognormal_delays",
-  #   delay_dist = "lognormal"
-  # ),
+  baseline %>% mutate(
+    scenario_id = "lognormal_delays",
+    delay_distribution = "log-normal"
+  ),
   # baseline %>% mutate(
   #   scenario_id = "weibull_delays",
-  #   delay_dist = "weibull"
+  #   delay_distribution = "weibull"
   # ),
   baseline %>% mutate(
     scenario_id = "very_small_sample",
@@ -104,7 +104,7 @@ params_list <- map(
       n_per_group  = rep(row$group_size, 4),
       mean_scale   = row$mean_scale,
       cv_scale     = row$cv_scale,
-      delay_dist   = row$delay_dist,
+      delay_distribution = row$delay_distribution,
       prop_missing = row$prop_missing,
       prob_error   = row$prob_error,
       error_model  = row$error_model
