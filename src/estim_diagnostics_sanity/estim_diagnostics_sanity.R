@@ -109,9 +109,9 @@ true_params <- map_dfr(scenarios, function(scenario_name) {
   params <- sim_params[[scenario_name]]
   # Delays
   tibble(
-    param_idx = 1:nrow(params$delay_params),
-    true_mean = params$delay_params$delay_mean,
-    true_cv   = params$delay_params$delay_cv
+    param_idx = 1:nrow(params$delay_info),
+    true_mean = params$delay_info$mean,
+    true_cv   = params$delay_info$cv
   ) %>% 
     # Error
     bind_rows(tibble(
