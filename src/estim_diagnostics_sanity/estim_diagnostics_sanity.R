@@ -12,6 +12,8 @@ library(stringr)
 library(ggrastr)
 library(furrr)
 
+options(future.globals.maxSize = Inf)
+
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
 
@@ -63,10 +65,18 @@ dir.create("results", showWarnings = FALSE)
 dir.create("results/figures", showWarnings = FALSE)
 
 # Read in dependencies -------------------------------------------------------
-sim_params <- readRDS("sim_params.rds")
-sim_data <- readRDS("sim_data.rds")
+sim_params <- readRDS("sim_params.rds")[scenarios]
+sim_data <- readRDS("sim_data.rds")[scenarios]
 sim_estim <- setNames(
-  lapply(scenarios, function(s) readRDS(paste0("sim_estim_", s, ".rds"))[[1]]),
+  lapply(scenarios, function(s) {
+    lapply(readRDS(paste0("sim_estim_", s, ".rds"))[[1]], function(x) {
+      list(
+        pars = x$pars,
+        observed_data = x$observed_data,
+        data = list(error_indicators = x$data$error_indicators)
+      )
+    })
+  }),
   scenarios
 )
 
@@ -129,10 +139,10 @@ true_params <- map_dfr(scenarios, function(scenario_name) {
 
 # Extract empirical params from simulated data --------------------------------
 empirical_params <- map_dfr(scenarios, function(scenario_name) {
-  scenario_data <- sim_data[[scenario_name]]
-  future_map_dfr(seq_along(scenario_data), function(sim_idx) {
+  scenario_sim <- sim_data[[scenario_name]]
+  future_map_dfr(seq_along(scenario_sim), function(sim_idx) {
     
-    sim_obj <- scenario_data[[sim_idx]]
+    sim_obj <- scenario_sim[[sim_idx]]
     
     err_ind <- sim_obj$error_indicators %>% select(-id, -group)
     total_errors <- sum(err_ind == TRUE, na.rm = TRUE)
@@ -169,11 +179,11 @@ empirical_params <- map_dfr(scenarios, function(scenario_name) {
 
 # MCMC Extraction ------------------------------------------------------------
 sim_summaries <- map_dfr(names(sim_estim), function(scenario_name) {
-  scenario_data <- sim_estim[[scenario_name]]
-  future_map_dfr(seq_along(scenario_data), function(sim_idx) {
+  scenario_estim <- sim_estim[[scenario_name]]
+  future_map_dfr(seq_along(scenario_estim), function(sim_idx) {
     
     # pars array [parameters, iterations, chains]
-    pars_array <- scenario_data[[sim_idx]]$pars
+    pars_array <- scenario_estim[[sim_idx]]$pars
     
     # transpose to [iterations, chains, parameters] for posterior package
     pars_transposed <- aperm(pars_array, c(2, 3, 1))
@@ -324,11 +334,11 @@ saveRDS(scenario_convergence, "results/scenario_convergence.rds")
 
 # Trace plots ----------------------------------------------------------------
 all_draws <- map_dfr(names(sim_estim), function(scenario_name) {
-  scenario_data <- sim_estim[[scenario_name]]
-  future_map_dfr(seq_along(scenario_data), function(sim_idx) {
+  scenario_estim <- sim_estim[[scenario_name]]
+  future_map_dfr(seq_along(scenario_estim), function(sim_idx) {
     
     # transpose pars array
-    pars_array <- scenario_data[[sim_idx]]$pars
+    pars_array <- scenario_estim[[sim_idx]]$pars
     pars_transposed <- aperm(pars_array, c(2, 3, 1))
     
     as_draws_df(pars_transposed) %>%
@@ -705,10 +715,10 @@ apply_scenario_labels <- function(df) {
 }
 
 observed_patterns <- map_dfr(scenarios, function(scenario_name) {
-  scenario_data <- sim_estim[[scenario_name]]
-  future_map_dfr(seq_along(scenario_data), function(sim_idx) {
+  scenario_estim <- sim_estim[[scenario_name]]
+  future_map_dfr(seq_along(scenario_estim), function(sim_idx) {
     
-    sim_obj <- scenario_data[[sim_idx]]
+    sim_obj <- scenario_estim[[sim_idx]]
     
     obs <- sim_obj$observed_data %>%
       mutate(scenario = scenario_name, simulation = sim_idx)
@@ -830,11 +840,11 @@ event_names <- c("onset", "hospitalisation", "report", "death", "discharge")
 
 indiv_event_status <- map_dfr(scenarios, function(scenario_name) {
   scenario_estim <- sim_estim[[scenario_name]]
-  scenario_data <- sim_data[[scenario_name]]
+  scenario_sim <- sim_data[[scenario_name]]
   future_map_dfr(seq_along(scenario_estim), function(sim_idx) {
     
-    true_errors <- scenario_data[[sim_idx]]$error_indicators
-    obs_data <- scenario_data[[sim_idx]]$observed_data
+    true_errors <- scenario_sim[[sim_idx]]$error_indicators
+    obs_data <- scenario_sim[[sim_idx]]$observed_data
     
     # estimated error indicators [individuals, events, iterations, chains]
     est_error_array <- scenario_estim[[sim_idx]]$data$error_indicators
