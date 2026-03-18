@@ -8,6 +8,8 @@ library(purrr)
 library(ggplot2)
 library(glue)
 library(posterior)
+library(stringr)
+library(ggrastr)
 
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
@@ -41,7 +43,7 @@ orderly_artefact(files = c("results/figures/trace_error.pdf",
                            "results/figures/coverage_plot_emp.pdf",
                            "results/sim_summaries.rds",
                            "results/agg_summaries.rds",
-                           "results/figures/posterior_mean_delay.pdf",
+                           "results/figures/posterior_delay_mean.pdf",
                            "results/figures/posterior_cv.pdf",
                            "results/figures/posterior_prob_error.pdf",
                            "results/figures/observed_patterns.pdf",
@@ -189,18 +191,18 @@ sim_summaries <- map_dfr(names(sim_estim), function(scenario_name) {
         overall_q75  = `75%`,
         overall_q975 = `97.5%`
       ) %>%
-      filter(grepl("^(prob_error|mean_delay|cv_delay)", variable)) %>%
+      filter(grepl("^(prob_error|delay_mean|delay_cv)", variable)) %>%
       mutate(
         scenario = scenario_name,
         simulation = sim_idx,
         param_idx = case_when(
           variable == "prob_error" ~ 0,
-          grepl("mean_delay|cv_delay", variable) ~ 
+          grepl("delay_mean|delay_cv", variable) ~ 
             as.numeric(str_extract(variable, "\\d+")),
           TRUE ~ NA
         ),
         type = case_when(
-          grepl("^cv_delay", variable) ~ "cv",
+          grepl("^delay_cv", variable) ~ "cv",
           TRUE ~ "mean"
         )
       ) %>%
@@ -328,8 +330,8 @@ all_draws <- map_dfr(names(sim_estim), function(scenario_name) {
     as_draws_df(pars_transposed) %>%
       as_tibble() %>%
       select(.chain, .iteration, 
-             matches("^(prob_error|mean_delay|cv_delay)")) %>%
-      pivot_longer(cols = matches("^(prob_error|mean_delay|cv_delay)"),
+             matches("^(prob_error|delay_mean|delay_cv)")) %>%
+      pivot_longer(cols = matches("^(prob_error|delay_mean|delay_cv)"),
                    names_to = "variable",
                    values_to = "value") %>%
       mutate(
@@ -339,11 +341,11 @@ all_draws <- map_dfr(names(sim_estim), function(scenario_name) {
         iteration = .iteration,
         param_idx = case_when(
           variable == "prob_error" ~ 0,
-          grepl("mean_delay|cv_delay", variable) ~ 
+          grepl("delay_mean|delay_cv", variable) ~ 
             as.numeric(str_extract(variable, "\\d+")),
           TRUE ~ NA
         ),
-        type = ifelse(grepl("^cv_delay", variable), "cv", "mean")
+        type = ifelse(grepl("^delay_cv", variable), "cv", "mean")
       ) %>%
       select(-variable, -.chain, -.iteration)
   })
@@ -381,8 +383,11 @@ ggsave("results/figures/trace_error.pdf", trace_prob_error, width = 14, height =
 # Delays
 make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols = FALSE) {
   p <- ggplot(data, aes(x = iteration, y = {{y_var}})) +
-    geom_line(alpha = 0.3, aes(colour = param_label, 
-                               group = interaction(param_label, simulation))) +
+    rasterise(
+      geom_line(alpha = 0.3, aes(colour = param_label, 
+                                 group = interaction(param_label, simulation))),
+      dpi = 300
+    ) +
     geom_hline(aes(yintercept = {{true_var}}, colour = param_label),
                linetype = "dashed", linewidth = 0.8) +
     facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
@@ -405,7 +410,7 @@ make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols =
 }
 
 trace_data_base <- all_draws %>%
-  filter(param_idx > 0, iteration > 100) %>%
+  filter(param_idx > 0) %>%
   mutate(scenario = as.character(scenario)) %>%
   left_join(
     true_params %>% 
@@ -423,10 +428,10 @@ trace_10 <- make_trace_plot(
 )
 
 trace_all <- make_trace_plot(
-  trace_data_base,
+  trace_data_base %>% filter(iteration %% 5 == 0),
   post_mean,
   true_mean,
-  "Trace plots (all simulations)", "Mean Delay",
+  "Trace plots (all simulations - thinning)", "Mean Delay",
   add_symbols = TRUE
 )
 
@@ -643,7 +648,7 @@ cv_posterior_plot <- ggplot(posterior_data,
         panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
 
-ggsave("results/figures/posterior_mean_delay.pdf", mean_posterior_plot, width = 14, height = 10)
+ggsave("results/figures/posterior_delay_mean.pdf", mean_posterior_plot, width = 14, height = 10)
 ggsave("results/figures/posterior_cv.pdf", cv_posterior_plot, width = 14, height = 10)
 
 
