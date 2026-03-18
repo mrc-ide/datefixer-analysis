@@ -8,6 +8,9 @@ library(purrr)
 library(ggplot2)
 library(glue)
 library(posterior)
+library(stringr)
+library(ggrastr)
+library(furrr)
 
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
@@ -41,7 +44,7 @@ orderly_artefact(files = c("results/figures/trace_error.pdf",
                            "results/figures/coverage_plot_emp.pdf",
                            "results/sim_summaries.rds",
                            "results/agg_summaries.rds",
-                           "results/figures/posterior_mean_delay.pdf",
+                           "results/figures/posterior_delay_mean.pdf",
                            "results/figures/posterior_cv.pdf",
                            "results/figures/posterior_prob_error.pdf",
                            "results/figures/observed_patterns.pdf",
@@ -126,9 +129,10 @@ true_params <- map_dfr(scenarios, function(scenario_name) {
 
 # Extract empirical params from simulated data --------------------------------
 empirical_params <- map_dfr(scenarios, function(scenario_name) {
-  map_dfr(seq_along(sim_data[[scenario_name]]), function(sim_idx) {
+  scenario_data <- sim_data[[scenario_name]]
+  future_map_dfr(seq_along(scenario_data), function(sim_idx) {
     
-    sim_obj <- sim_data[[scenario_name]][[sim_idx]]
+    sim_obj <- scenario_data[[sim_idx]]
     
     err_ind <- sim_obj$error_indicators %>% select(-id, -group)
     total_errors <- sum(err_ind == TRUE, na.rm = TRUE)
@@ -165,14 +169,15 @@ empirical_params <- map_dfr(scenarios, function(scenario_name) {
 
 # MCMC Extraction ------------------------------------------------------------
 sim_summaries <- map_dfr(names(sim_estim), function(scenario_name) {
-  map_dfr(seq_along(sim_estim[[scenario_name]]), function(sim_idx) {
+  scenario_data <- sim_estim[[scenario_name]]
+  future_map_dfr(seq_along(scenario_data), function(sim_idx) {
     
     # pars array [parameters, iterations, chains]
-    pars_array <- sim_estim[[scenario_name]][[sim_idx]]$pars
+    pars_array <- scenario_data[[sim_idx]]$pars
     
     # transpose to [iterations, chains, parameters] for posterior package
     pars_transposed <- aperm(pars_array, c(2, 3, 1))
-
+    
     # Convert to draws format
     draws_df <- as_draws_df(pars_transposed)
     
@@ -189,18 +194,18 @@ sim_summaries <- map_dfr(names(sim_estim), function(scenario_name) {
         overall_q75  = `75%`,
         overall_q975 = `97.5%`
       ) %>%
-      filter(grepl("^(prob_error|mean_delay|cv_delay)", variable)) %>%
+      filter(grepl("^(prob_error|delay_mean|delay_cv)", variable)) %>%
       mutate(
         scenario = scenario_name,
         simulation = sim_idx,
         param_idx = case_when(
           variable == "prob_error" ~ 0,
-          grepl("mean_delay|cv_delay", variable) ~ 
+          grepl("delay_mean|delay_cv", variable) ~ 
             as.numeric(str_extract(variable, "\\d+")),
           TRUE ~ NA
         ),
         type = case_when(
-          grepl("^cv_delay", variable) ~ "cv",
+          grepl("^delay_cv", variable) ~ "cv",
           TRUE ~ "mean"
         )
       ) %>%
@@ -319,17 +324,18 @@ saveRDS(scenario_convergence, "results/scenario_convergence.rds")
 
 # Trace plots ----------------------------------------------------------------
 all_draws <- map_dfr(names(sim_estim), function(scenario_name) {
-  map_dfr(seq_along(sim_estim[[scenario_name]]), function(sim_idx) {
+  scenario_data <- sim_estim[[scenario_name]]
+  future_map_dfr(seq_along(scenario_data), function(sim_idx) {
     
     # transpose pars array
-    pars_array <- sim_estim[[scenario_name]][[sim_idx]]$pars
+    pars_array <- scenario_data[[sim_idx]]$pars
     pars_transposed <- aperm(pars_array, c(2, 3, 1))
     
     as_draws_df(pars_transposed) %>%
       as_tibble() %>%
       select(.chain, .iteration, 
-             matches("^(prob_error|mean_delay|cv_delay)")) %>%
-      pivot_longer(cols = matches("^(prob_error|mean_delay|cv_delay)"),
+             matches("^(prob_error|delay_mean|delay_cv)")) %>%
+      pivot_longer(cols = matches("^(prob_error|delay_mean|delay_cv)"),
                    names_to = "variable",
                    values_to = "value") %>%
       mutate(
@@ -339,11 +345,11 @@ all_draws <- map_dfr(names(sim_estim), function(scenario_name) {
         iteration = .iteration,
         param_idx = case_when(
           variable == "prob_error" ~ 0,
-          grepl("mean_delay|cv_delay", variable) ~ 
+          grepl("delay_mean|delay_cv", variable) ~ 
             as.numeric(str_extract(variable, "\\d+")),
           TRUE ~ NA
         ),
-        type = ifelse(grepl("^cv_delay", variable), "cv", "mean")
+        type = ifelse(grepl("^delay_cv", variable), "cv", "mean")
       ) %>%
       select(-variable, -.chain, -.iteration)
   })
@@ -381,8 +387,11 @@ ggsave("results/figures/trace_error.pdf", trace_prob_error, width = 14, height =
 # Delays
 make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols = FALSE) {
   p <- ggplot(data, aes(x = iteration, y = {{y_var}})) +
-    geom_line(alpha = 0.3, aes(colour = param_label, 
-                               group = interaction(param_label, simulation))) +
+    rasterise(
+      geom_line(alpha = 0.3, aes(colour = param_label, 
+                                 group = interaction(param_label, simulation))),
+      dpi = 300
+    ) +
     geom_hline(aes(yintercept = {{true_var}}, colour = param_label),
                linetype = "dashed", linewidth = 0.8) +
     facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
@@ -405,7 +414,7 @@ make_trace_plot <- function(data, y_var, true_var, title, y_label, add_symbols =
 }
 
 trace_data_base <- all_draws %>%
-  filter(param_idx > 0, iteration > 100) %>%
+  filter(param_idx > 0) %>%
   mutate(scenario = as.character(scenario)) %>%
   left_join(
     true_params %>% 
@@ -423,10 +432,10 @@ trace_10 <- make_trace_plot(
 )
 
 trace_all <- make_trace_plot(
-  trace_data_base,
+  trace_data_base %>% filter(iteration %% 5 == 0),
   post_mean,
   true_mean,
-  "Trace plots (all simulations)", "Mean Delay",
+  "Trace plots (all simulations - thinning)", "Mean Delay",
   add_symbols = TRUE
 )
 
@@ -474,7 +483,7 @@ bias_plot_delays_gt <- agg_summaries %>%
   make_bias_plot(bias_gt_avg, bias_gt_sd,
                  "Median Bias of Delay Parameters (+/- SD)",
                  "Compared to Ground Truth"
-                 )
+  )
 
 # Compare to mean delay of simulated true data (sample truth)
 bias_plot_delays_emp <- agg_summaries %>%
@@ -482,7 +491,7 @@ bias_plot_delays_emp <- agg_summaries %>%
   make_bias_plot(bias_emp_avg, bias_emp_sd,
                  "Median Bias of Delay Parameters (+/- SD)",
                  "Compared to Sample Truth"
-                 )
+  )
 
 ggsave("results/figures/bias_plot_delays_gt.pdf", bias_plot_delays_gt, width = 10, height = 8)
 ggsave("results/figures/bias_plot_delays_emp.pdf", bias_plot_delays_emp, width = 10, height = 8)
@@ -590,7 +599,7 @@ emp_coverage <- agg_summaries %>%
     cov95_emp_pct, 
     cov50_emp_pct,
     "Empirical values (sample truth). Error bars: 95% binomial confidence intervals"
-    )
+  )
 
 ggsave("results/figures/coverage_plot.pdf", gt_coverage, width = 10, height = 8)
 ggsave("results/figures/coverage_plot_emp.pdf", emp_coverage, width = 10, height = 8)
@@ -643,7 +652,7 @@ cv_posterior_plot <- ggplot(posterior_data,
         panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 
 
-ggsave("results/figures/posterior_mean_delay.pdf", mean_posterior_plot, width = 14, height = 10)
+ggsave("results/figures/posterior_delay_mean.pdf", mean_posterior_plot, width = 14, height = 10)
 ggsave("results/figures/posterior_cv.pdf", cv_posterior_plot, width = 14, height = 10)
 
 
@@ -696,9 +705,10 @@ apply_scenario_labels <- function(df) {
 }
 
 observed_patterns <- map_dfr(scenarios, function(scenario_name) {
-  map_dfr(seq_along(sim_data[[scenario_name]]), function(sim_idx) {
+  scenario_data <- sim_estim[[scenario_name]]
+  future_map_dfr(seq_along(scenario_data), function(sim_idx) {
     
-    sim_obj <- sim_data[[scenario_name]][[sim_idx]]
+    sim_obj <- scenario_data[[sim_idx]]
     
     obs <- sim_obj$observed_data %>%
       mutate(scenario = scenario_name, simulation = sim_idx)
@@ -794,7 +804,7 @@ obs_pattern_summary <- indiv_obs_summary %>%
   ungroup() %>%
   arrange(scenario, group, desc(n_individuals))
 
-  # rough visualisation
+# rough visualisation
 p_obs_patterns <- obs_pattern_summary %>%
   ggplot(aes(x = reorder(pattern, n_individuals), y = pct, fill = pattern)) +
   geom_col() +
@@ -819,14 +829,16 @@ ggsave("results/figures/observed_patterns.pdf",
 event_names <- c("onset", "hospitalisation", "report", "death", "discharge")
 
 indiv_event_status <- map_dfr(scenarios, function(scenario_name) {
-  map_dfr(seq_along(sim_estim[[scenario_name]]), function(sim_idx) {
+  scenario_estim <- sim_estim[[scenario_name]]
+  scenario_data <- sim_data[[scenario_name]]
+  future_map_dfr(seq_along(scenario_estim), function(sim_idx) {
     
-    true_errors <- sim_data[[scenario_name]][[sim_idx]]$error_indicators
-    obs_data <- sim_data[[scenario_name]][[sim_idx]]$observed_data
+    true_errors <- scenario_data[[sim_idx]]$error_indicators
+    obs_data <- scenario_data[[sim_idx]]$observed_data
     
     # estimated error indicators [individuals, events, iterations, chains]
-    est_error_array <- sim_estim[[scenario_name]][[sim_idx]]$data$error_indicators
-
+    est_error_array <- scenario_estim[[sim_idx]]$data$error_indicators
+    
     # posterior probability of error (mean across iterations and chains)
     post_prob_error <- apply(est_error_array, c(1, 2), mean, na.rm = TRUE)
     
@@ -854,7 +866,7 @@ indiv_event_status <- map_dfr(scenarios, function(scenario_name) {
         match_onset = ifelse(
           true_onset == "missing", NA,
           true_onset == estimated_onset
-          ),
+        ),
         
         # Hospitalisation
         true_hospitalisation = case_when(
