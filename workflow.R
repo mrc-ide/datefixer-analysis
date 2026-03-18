@@ -34,9 +34,9 @@ baseline <- task_create_expr(
   resources = resources
 )
 
-task_status(baseline) # ad40517e513b317299d5dd69826c023f
+task_status(baseline) # c3360b8748af86ad22340359f7f441d1
 task_info(baseline)
-task_result(baseline) # "20260218-164721-7f26e3f4"
+task_result(baseline) # "20260317-185618-e09a9af3"
 
 # sanity checks
 no_missing <- task_create_expr(
@@ -46,8 +46,8 @@ no_missing <- task_create_expr(
   resources = resources
 )
 
-task_info(no_missing) # f87d714634f1642b522386eece443586
-task_result(no_missing) # "20260218-164724-ef4728a0"
+task_info(no_missing) # 7ccc5e0d16fc28e3152b252da17d0be8
+task_result(no_missing) # "20260317-185635-bb30f6cd"
 
 no_error <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -56,8 +56,8 @@ no_error <- task_create_expr(
   resources = resources
 )
 
-task_info(no_error) # dcb8550bfd492c1f2630b21d91bfb906
-task_result(no_error) # "20260218-164728-c3e81533"
+task_info(no_error) # 23d34cc00ccc50f3fbc6db4fc7df4491
+task_result(no_error) # "20260317-185646-2042fe19"
 
 no_error_no_missing <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -66,8 +66,8 @@ no_error_no_missing <- task_create_expr(
   resources = resources
 )
 
-task_info(no_error_no_missing) # 99c5d01a46ca81e75131e3ca5d16a080
-task_result(no_error_no_missing) # "20260218-164732-ca32fa3c"
+task_info(no_error_no_missing) # acbd0586a7307210419fed9ac55e9e8d
+task_result(no_error_no_missing) # "20260317-185717-555c9355"
 
 # Summarise ------------------------------------------------------------------
 
@@ -75,5 +75,11 @@ sanity <- task_create_expr(
   orderly::orderly_run("estim_diagnostics_sanity")
 )
 
+sanity <- task_create_expr(
+  orderly::orderly_run("estim_diagnostics_sanity"),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
 task_info(sanity)
-task_result(sanity) # 5000 iter: "20260218-220419-976bc80a"
+task_result(sanity)
