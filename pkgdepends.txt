@@ -20,3 +20,6 @@ stringr
 scales
 ggrastr
 png
+furrr
+future
+globals
