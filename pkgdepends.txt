@@ -18,3 +18,8 @@ glue
 posterior
 stringr
 scales
+ggrastr
+png
+furrr
+future
+globals

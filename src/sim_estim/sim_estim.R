@@ -35,8 +35,8 @@ if (is.null(selected_scenario) || identical(selected_scenario, "all")) {
 
 # MCMC settings ---------------------------------------------------------------
 
-control <- mcmc_control(n_steps = 5000,
-                        burnin = 500,
+control <- mcmc_control(n_steps = 10000,
+                        burnin = 5000,
                         n_chains = 4,
                         earliest_possible_date = "2014-01-01",
                         latest_possible_date = "2015-01-01")
@@ -51,13 +51,13 @@ for (scenario in scenario_list) {
 
   sim_data_list <- sim_data[[scenario]]
   sim_param <- sim_params[[scenario]]
-  delay_map <- sim_param$delay_map
+  delay_info <- sim_param$delay_info
   
   # Get the cluster that hipercow created
   cl <- parallel::getDefaultCluster()
   
   parallel::clusterExport(cl, 
-                          varlist = c("sim_data_list", "delay_map", 
+                          varlist = c("sim_data_list", "delay_info", 
                                       "hyperparameters", "control", "sampler"),
                           envir = environment())
   
@@ -69,7 +69,7 @@ mcmc_samples <- parLapply(cl, seq_along(sim_data_list), function(sim) {
   x <- sim_data_list[[sim]]
   #message("Processing sim ", sim, " for scenario: ", scenario)
 
-  model <- datefixer_model(x$observed_data, delay_map, hyperparameters, control)
+  model <- datefixer_model(x$observed_data, delay_info, hyperparameters, control)
   mcmc_run(model, sampler, control = control)
 
 })
