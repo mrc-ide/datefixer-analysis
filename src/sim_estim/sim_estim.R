@@ -65,13 +65,9 @@ for (scenario in scenario_list) {
   parallel::clusterEvalQ(cl, library(datefixer))
   
 mcmc_samples <- parLapply(cl, seq_along(sim_data_list), function(sim) {
-  
   x <- sim_data_list[[sim]]
-  #message("Processing sim ", sim, " for scenario: ", scenario)
-
   model <- datefixer_model(x$observed_data, delay_info, hyperparameters, control)
   mcmc_run(model, sampler, control = control)
-
 })
 
 mcmc_all[[scenario]] <- mcmc_samples
