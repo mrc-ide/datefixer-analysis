@@ -72,7 +72,6 @@ sim_estim <- setNames(
     lapply(readRDS(paste0("sim_estim_", s, ".rds"))[[1]], function(x) {
       list(
         pars = x$pars,
-        observed_data = x$observed_data,
         data = list(error_indicators = x$data$error_indicators)
       )
     })
@@ -715,10 +714,10 @@ apply_scenario_labels <- function(df) {
 }
 
 observed_patterns <- map_dfr(scenarios, function(scenario_name) {
-  scenario_estim <- sim_estim[[scenario_name]]
-  future_map_dfr(seq_along(scenario_estim), function(sim_idx) {
+  scenario_data <- sim_data[[scenario_name]]
+  future_map_dfr(seq_along(scenario_data), function(sim_idx) {
     
-    sim_obj <- scenario_estim[[sim_idx]]
+    sim_obj <- scenario_data[[sim_idx]]
     
     obs <- sim_obj$observed_data %>%
       mutate(scenario = scenario_name, simulation = sim_idx)
