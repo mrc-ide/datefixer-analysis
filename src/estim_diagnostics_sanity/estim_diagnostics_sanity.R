@@ -11,6 +11,7 @@ library(posterior)
 library(stringr)
 library(ggrastr)
 library(furrr)
+library(future)
 
 options(future.globals.maxSize = Inf)
 
@@ -69,7 +70,7 @@ sim_params <- readRDS("sim_params.rds")[scenarios]
 sim_data <- readRDS("sim_data.rds")[scenarios]
 
 sim_estim <- setNames(
-  future_lapply(scenarios, function(s) {
+  lapply(scenarios, function(s) {
     lapply(readRDS(paste0("sim_estim_", s, ".rds"))[[1]], function(x) {
       list(
         pars = x$pars,
