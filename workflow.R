@@ -1,4 +1,4 @@
-#pak::pkg_install("mrc-ide/datefixer")
+#pak::pkg_install("mrc-ide/datefixer@new-update-erroneous-date")
 #pak::pkg_install("mrc-ide/monty@mrc-6769")
 
 library(orderly)
