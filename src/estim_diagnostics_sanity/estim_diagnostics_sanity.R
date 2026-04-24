@@ -15,6 +15,11 @@ library(future)
 
 options(future.globals.maxSize = Inf)
 
+pars <- orderly_parameters(n_steps = NULL, burnin = NULL)
+
+n_steps <- n_steps
+burnin <- burnin
+
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
 
@@ -30,7 +35,9 @@ scenario_labels <- c(
 
 for (s in scenarios) {
   orderly_dependency("sim_estim",
-                     "latest(parameter:scenario == environment:s)",
+                     "latest(parameter:scenario == environment:s && 
+                     parameter:n_steps == environment:n_steps &&
+                     parameter:burnin == environment:burnin)",
                      c("sim_estim_${s}.rds" = "sim_estim.rds"))
 }
 
@@ -38,13 +45,13 @@ orderly_artefact(files = c("results/figures/trace_error.pdf",
                            "results/figures/trace_delays_10.pdf",
                            "results/figures/trace_delays_all.pdf",
                            "results/figures/bias_plot_delays_gt.pdf",
-                           "results/figures/bias_plot_delays_emp.pdf",
+                           #"results/figures/bias_plot_delays_emp.pdf",
                            "results/figures/bias_plot_error_gt.pdf",
-                           "results/figures/bias_plot_error_emp.pdf",
+                           #"results/figures/bias_plot_error_emp.pdf",
                            "results/figures/bias_plot_cv_gt.pdf",
-                           "results/figures/bias_plot_cv_emp.pdf",
+                           #"results/figures/bias_plot_cv_emp.pdf",
                            "results/figures/coverage_plot.pdf",
-                           "results/figures/coverage_plot_emp.pdf",
+                           #"results/figures/coverage_plot_emp.pdf",
                            "results/sim_summaries.rds",
                            "results/agg_summaries.rds",
                            "results/figures/posterior_delay_mean.pdf",
@@ -59,7 +66,9 @@ orderly_artefact(files = c("results/figures/trace_error.pdf",
                            "results/event_confusion.rds",
                            "results/pattern_confusion.rds",
                            "results/convergence_issues.rds",
-                           "results/scenario_convergence.rds"),
+                           "results/scenario_convergence.rds",
+                           "results/figures/ess_plot.pdf",
+                           "results/low_ess_sims.rds"),
                  description = "Analysis outputs")
 
 dir.create("results", showWarnings = FALSE)
@@ -69,17 +78,17 @@ dir.create("results/figures", showWarnings = FALSE)
 sim_params <- readRDS("sim_params.rds")[scenarios]
 sim_data <- readRDS("sim_data.rds")[scenarios]
 
-sim_estim <- setNames(
-  lapply(scenarios, function(s) {
-    lapply(readRDS(paste0("sim_estim_", s, ".rds"))[[1]], function(x) {
-      list(
-        pars = x$pars,
-        data = list(error_indicators = x$data$error_indicators)
-      )
-    })
-  }),
-  scenarios
-)
+# sim_estim <- setNames(
+#   lapply(scenarios, function(s) {
+#     lapply(readRDS(paste0("sim_estim_", s, ".rds"))[[1]], function(x) {
+#       list(
+#         pars = x$pars,
+#         data = list(error_indicators = x$data$error_indicators)
+#       )
+#     })
+#   }),
+#   scenarios
+# )
 
 # Delay mapping (defines which param_idx corresponds to which delay) ---------
 delay_mapping <- tribble(
@@ -182,7 +191,7 @@ extract_draws_and_summary <- function(pars_array, scenario_name, sim_idx) {
       ),
       type = case_when(
         grepl("^delay_cv", variable) ~ "cv",
-        TRUE                         ~ "mean"
+        TRUE ~ "mean"
       )
     ) %>%
     select(-variable)
@@ -219,15 +228,30 @@ sim_grid <- expand.grid(
   stringsAsFactors = FALSE
 )
 
-all_results <- future_map(
-  seq_len(nrow(sim_grid)),
-  function(i) {
+# all_results <- future_map(
+#   seq_len(nrow(sim_grid)),
+#   function(i) {
+#     
+#     s <- sim_grid$scenario_name[i]
+#     sim_idx <- sim_grid$sim_idx[i]
+#     
+#     estim_list <- readRDS(paste0("sim_estim_", s, ".rds"))[[1]]
+#     estim_obj <- sim_estim[[s]][[sim_idx]]
+#     
+#     sim_obj <- sim_data[[s]][[sim_idx]]
+
+all_results <- map(scenarios, function(s) {
+  
+  message(glue("Processing scenario: {s}"))
+  
+  estim_list <- readRDS(paste0("sim_estim_", s, ".rds"))[[1]]
+  current_sim_data <- sim_data[[s]]
+  
+  # Loop through simulations in this scenario
+  res <- map(seq_along(estim_list), function(sim_idx) {
     
-    s <- sim_grid$scenario_name[i]
-    sim_idx <- sim_grid$sim_idx[i]
-    
-    sim_obj <- sim_data[[s]][[sim_idx]]
-    estim_obj <- sim_estim[[s]][[sim_idx]]
+    estim_obj <- estim_list[[sim_idx]]
+    sim_obj <- current_sim_data[[sim_idx]]
     
     # extract draws and summary of estimates
     draws_result <- extract_draws_and_summary(estim_obj$pars, s, sim_idx)
@@ -396,9 +420,13 @@ all_results <- future_map(
       observed_pat = observed_pat,
       event_status = event_status
     )
-  },
-  .options = furrr_options(seed = TRUE)
-)
+  })
+  rm(estim_list)
+  gc()
+  return(res)
+}) %>% list_flatten()
+#   .options = furrr_options(seed = TRUE)
+# )
 
 sim_summaries_raw <- bind_rows(lapply(all_results, `[[`, "summary"))
 all_draws_raw <- bind_rows(lapply(all_results, `[[`, "tidy_draws"))
@@ -583,6 +611,8 @@ indiv_event_status_with_pattern <- indiv_event_status %>%
     by = c("scenario", "simulation", "id")
   )
 
+# for each scenario, group and event - % of error indicators that match truth
+# (excluding missing dates)
 event_match_summary <- indiv_event_status %>%
   pivot_longer(cols = starts_with("match_"), names_to = "event",
                values_to = "match") %>%
@@ -596,6 +626,8 @@ event_match_summary <- indiv_event_status %>%
     .groups = "drop"
   )
 
+# separate accuracy into sensitivity (ability to identify true errors) and
+# specificity (ability to identify truly correct dates)
 event_confusion <- indiv_event_status %>%
   pivot_longer(
     cols = c(starts_with("true_"), starts_with("estimated_")),
@@ -660,7 +692,7 @@ true_params_chr <- true_params %>% mutate(scenario = as.character(scenario))
 
 # Trace plot: Prob error
 trace_prob_error <- all_draws %>%
-  filter(param_idx == 0) %>%
+  filter(param_idx == 0 & iteration > 100) %>%
   left_join(select(true_params_chr, scenario, param_idx, true_mean),
             by = c("scenario", "param_idx")) %>%
   mutate(sim_chain = paste(simulation, chain, sep = "_")) %>%
@@ -672,6 +704,7 @@ trace_prob_error <- all_draws %>%
   facet_grid(cols = vars(scenario), scales = "free_y") +
   labs(y = "Probability of Error", x = "Iteration",
        title = "Trace plots for probability of error (100 simulations)",
+       subtitle = glue("MCMC: {n_steps} steps, {burnin} burn-in"),
        colour = "Chain") +
   theme_minimal() +
   theme(strip.text = element_text(size = 8),
@@ -683,12 +716,10 @@ ggsave("results/figures/trace_error.pdf", trace_prob_error, width = 14, height =
 make_trace_plot <- function(data, y_var, true_var, title, y_label,
                             add_symbols = FALSE) {
   p <- ggplot(data, aes(x = iteration, y = {{y_var}})) +
-    rasterise(
-      geom_line(alpha = 0.3,
-                aes(colour = param_label,
-                    group = interaction(param_label, simulation))),
-      dpi = 300
-    ) +
+    rasterise(geom_line(alpha = 0.3,
+                        aes(colour = param_label,
+                            group = interaction(param_label, simulation))),
+              dpi = 300) +
     geom_hline(aes(yintercept = {{true_var}}, colour = param_label),
                linetype = "dashed", linewidth = 0.8) +
     facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
@@ -718,8 +749,10 @@ trace_data_base <- all_draws %>%
     by = c("scenario", "param_idx", "group")
   )
 
+if (burnin == 0) trace_data_base <- trace_data_base %>% filter(iteration > 100)
+
 trace_10 <- make_trace_plot(
-  filter(trace_data_base, simulation <= 10),
+  trace_data_base %>% filter(simulation <= 10),
   post_mean, true_mean,
   "Trace plots (first 10 simulations)", "Mean Delay",
   add_symbols = TRUE
@@ -728,7 +761,7 @@ trace_10 <- make_trace_plot(
 trace_all <- make_trace_plot(
   trace_data_base %>% filter(iteration %% 5 == 0),
   post_mean, true_mean,
-  "Trace plots (all simulations - thinning)", "Mean Delay",
+  "Trace plots (all simulations - 100 burnin)", "Mean Delay",
   add_symbols = TRUE
 )
 
@@ -778,13 +811,13 @@ ggsave("results/figures/bias_plot_delays_gt.pdf",
                         "Compared to Ground Truth"),
        width = 10, height = 8)
 
-# Compare to mean delay of simulated true data (sample truth)
-ggsave("results/figures/bias_plot_delays_emp.pdf",
-       agg_summaries %>% filter(!param_label %in% "probability of error") %>%
-         make_bias_plot(bias_emp_avg, bias_emp_sd,
-                        "Median Bias of Delay Parameters (+/- SD)",
-                        "Compared to Sample Truth"),
-       width = 10, height = 8)
+# # Compare to mean delay of simulated true data (sample truth)
+# ggsave("results/figures/bias_plot_delays_emp.pdf",
+#        agg_summaries %>% filter(!param_label %in% "probability of error") %>%
+#          make_bias_plot(bias_emp_avg, bias_emp_sd,
+#                         "Median Bias of Delay Parameters (+/- SD)",
+#                         "Compared to Sample Truth"),
+#        width = 10, height = 8)
 
 # Compare error probability to ground truth
 ggsave("results/figures/bias_plot_error_gt.pdf",
@@ -794,13 +827,13 @@ ggsave("results/figures/bias_plot_error_gt.pdf",
                               "Compared to Ground Truth"),
        width = 8, height = 4)
 
-# Compare error probability to sample truth
-ggsave("results/figures/bias_plot_error_emp.pdf",
-       agg_summaries %>% filter(param_label %in% "probability of error") %>%
-         make_error_bias_plot(bias_emp_avg, bias_emp_sd,
-                              "Median Bias: Probability of Error",
-                              "Compared to Sample Truth"),
-       width = 8, height = 4)
+# # Compare error probability to sample truth
+# ggsave("results/figures/bias_plot_error_emp.pdf",
+#        agg_summaries %>% filter(param_label %in% "probability of error") %>%
+#          make_error_bias_plot(bias_emp_avg, bias_emp_sd,
+#                               "Median Bias: Probability of Error",
+#                               "Compared to Sample Truth"),
+#        width = 8, height = 4)
 
 # CV bias plots
 ggsave("results/figures/bias_plot_cv_gt.pdf",
@@ -810,12 +843,12 @@ ggsave("results/figures/bias_plot_cv_gt.pdf",
                         "Compared to Ground Truth"),
        width = 10, height = 8)
 
-ggsave("results/figures/bias_plot_cv_emp.pdf",
-       agg_summaries %>% filter(!param_label %in% "probability of error") %>%
-         make_bias_plot(cv_bias_emp_avg, cv_bias_emp_sd,
-                        "Median Bias of CV Parameters (+/- SD)",
-                        "Compared to Sample Truth"),
-       width = 10, height = 8)
+# ggsave("results/figures/bias_plot_cv_emp.pdf",
+#        agg_summaries %>% filter(!param_label %in% "probability of error") %>%
+#          make_bias_plot(cv_bias_emp_avg, cv_bias_emp_sd,
+#                         "Median Bias of CV Parameters (+/- SD)",
+#                         "Compared to Sample Truth"),
+#        width = 10, height = 8)
 
 # Coverage plots
 make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
@@ -872,16 +905,16 @@ ggsave("results/figures/coverage_plot.pdf",
            ),
        width = 10, height = 8)
 
-# Empirical coverage
-ggsave("results/figures/coverage_plot_emp.pdf",
-       agg_summaries %>% filter(!param_label %in% "probability of error") %>%
-         make_coverage_plot(
-           cov95_emp_pct, cov50_emp_pct,
-           "Empirical values (sample truth). Error bars: 95% binomial confidence intervals"
-           ),
-       width = 10, height = 8)
+# # Empirical coverage
+# ggsave("results/figures/coverage_plot_emp.pdf",
+#        agg_summaries %>% filter(!param_label %in% "probability of error") %>%
+#          make_coverage_plot(
+#            cov95_emp_pct, cov50_emp_pct,
+#            "Empirical values (sample truth). Error bars: 95% binomial confidence intervals"
+#            ),
+#        width = 10, height = 8)
 
-# Posterior density plots
+# Posterior density plots ------------------------------------------------------
 
 # Aggregate draws across simulations for cleaner visualisation
 posterior_data <- all_draws %>%
@@ -968,3 +1001,32 @@ ggsave("results/figures/observed_patterns.pdf",
                panel.border    = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)),
        width = 14, height = 7)
 
+# ESS plot
+ggsave("results/figures/ess_plot.pdf",
+       sim_summaries %>%
+         ggplot(aes(x = scenario, y = ess_bulk_mean, fill = scenario)) +
+         geom_violin(alpha = 0.3, scale = "width") +
+         geom_jitter(aes(colour = scenario), width = 0.2, alpha = 0.5, size = 1) +
+         geom_hline(yintercept = 200, linetype = "dashed", colour = "black", linewidth = 0.8) +
+         facet_wrap(~param_label, scales = "free_y") +
+         labs(
+           title = "Distribution of effective sample size across simulations",
+           subtitle = "Red line = threshold of 200",
+           y = "ESS",
+           x = "") +
+         theme_bw() +
+         theme(
+           axis.text.x = element_text(angle = 45, hjust = 1),
+           legend.position = "none",
+           strip.text = element_text(face = "bold")
+           ),
+       width = 14, height = 7)
+
+# problematic runs
+low_ess_threshold <- 20
+problem_sims <- sim_summaries %>%
+  filter(ess_bulk_mean < low_ess_threshold) %>%
+  distinct(scenario, param_label, group, simulation, ess_bulk_mean, true_mean, overall_mean_mean) %>%
+  rename(est_mean = overall_mean_mean)
+
+saveRDS(problem_sims, "results/low_ess_sims.rds")
