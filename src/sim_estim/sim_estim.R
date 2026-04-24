@@ -2,7 +2,7 @@ library(orderly)
 library(datefixer)
 library(parallel)
 
-pars <- orderly_parameters(scenario = NULL)
+pars <- orderly_parameters(scenario = NULL, n_steps = NULL, burnin = NULL)
 
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
@@ -11,6 +11,8 @@ orderly_artefact(description = "MCMC outputs for simulation scenarios",
                  files = "sim_estim.rds")
 
 selected_scenario <- scenario
+iterations <- n_steps
+burn <- burnin
 
 # Read in dependencies --------------------------------------------------------
 
@@ -35,8 +37,8 @@ if (is.null(selected_scenario) || identical(selected_scenario, "all")) {
 
 # MCMC settings ---------------------------------------------------------------
 
-control <- mcmc_control(n_steps = 10000,
-                        burnin = 5000,
+control <- mcmc_control(n_steps = iterations,
+                        burnin = burn,
                         n_chains = 4,
                         earliest_possible_date = "2014-01-01",
                         latest_possible_date = "2015-01-01")
