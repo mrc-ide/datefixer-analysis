@@ -184,56 +184,202 @@ no_error_no_missing_10000 <- task_create_expr(
 task_info(no_error_no_missing_10000) # 318796fcf0020591d743e648053730a0
 task_result(no_error_no_missing_10000) # "20260423-090628-c22b527b"
 
-### 20,000 iterations, 10,000 burnin
+### 20,000 iterations, 10,000 burnin -----------------------------------------
+
+# "baseline" x
+# "low_missingness" x
+# "no_missing" x
+# "no_error" x
+# "no_error_no_missing" x
+# "low_error" x
+# "high_error" x
+# "very_small_sample" x
+# "small_sample" x
+# "moderate_sample" x
+# "very_large_sample" x
+# "long_delays" x
+# "short_delays" x
+# "high_variability"
+# "low_variability"
+# "lognormal_delays"
 
 baseline_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
                        parameters = list(scenario = "baseline",
                                          n_steps = 20000,
-                                         burnin = 10000)),
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
   parallel = hipercow_parallel("parallel"),
   resources = resources
 )
 
-task_info(baseline_20000) # bcb1fb6b5927014e99230342de9bf646
-task_result(baseline_20000) # 
+task_info(baseline_20000) # 8e44ac8858dc07175b474c338647f528
+task_result(baseline_20000) # "20260426-121041-06eb4727"
 
 no_missing_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
                        parameters = list(scenario = "no_missing",
                                          n_steps = 20000,
-                                         burnin = 10000)),
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
   parallel = hipercow_parallel("parallel"),
   resources = resources
 )
 
-task_info(no_missing_20000) # 04a6a183fb156e4740438fadb09cbfdd
-task_result(no_missing_20000) # 
+task_info(no_missing_20000) # 246d2e891435f5b436a6a24f653a86e9
+task_result(no_missing_20000) # "20260426-122009-d5f085b0"
 
 no_error_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
                        parameters = list(scenario = "no_error",
                                          n_steps = 20000,
-                                         burnin = 10000)),
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
   parallel = hipercow_parallel("parallel"),
   resources = resources
 )
 
-task_info(no_error_20000) # a7ecedf45ee5d4dce93fc39f58800be6
-task_result(no_error_20000) # 
+task_info(no_error_20000) # a4717c2593f30e9f02faeb5ffd11d443
+task_result(no_error_20000) # "20260426-122313-50011f3b"
 
 no_error_no_missing_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
                        parameters = list(scenario = "no_error_no_missing",
                                          n_steps = 20000,
-                                         burnin = 10000)),
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
   parallel = hipercow_parallel("parallel"),
   resources = resources
 )
 
-task_info(no_error_no_missing_20000) # 97c4b219413d96b3c8a2f1fcf6a8f912
-task_result(no_error_no_missing_20000) # 
+task_info(no_error_no_missing_20000) # 0241aabcce4ae19ec8ad4b29bd1caacd
+task_result(no_error_no_missing_20000) # "20260426-123522-02d3d4d2"
 
+low_missingness_20000 <- task_create_expr(
+  orderly::orderly_run("sim_estim",
+                       parameters = list(scenario = "low_missingness",
+                                         n_steps = 20000,
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
+task_info(low_missingness_20000) # 85d147572307ea16fe9ee1ba7ddf327a
+task_result(low_missingness_20000) # 
+
+low_error_20000 <- task_create_expr(
+  orderly::orderly_run("sim_estim",
+                       parameters = list(scenario = "low_error",
+                                         n_steps = 20000,
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
+task_info(low_error_20000) # 2f7f615191cfd9302bfd97761e12eede
+task_result(low_error_20000) # 
+
+high_error_20000 <- task_create_expr(
+  orderly::orderly_run("sim_estim",
+                       parameters = list(scenario = "high_error",
+                                         n_steps = 20000,
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
+task_info(high_error_20000) # 2c7f0924c0903ef39d14aef6774a5354
+task_result(high_error_20000) # 
+
+## sample sizes
+
+very_small_sample_20000 <- task_create_expr(
+  orderly::orderly_run("sim_estim",
+                       parameters = list(scenario = "very_small_sample",
+                                         n_steps = 20000,
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
+task_info(very_small_sample_20000) # 51579511835c791dae098b6694565a3e
+task_result(very_small_sample_20000) # 
+
+small_sample_20000 <- task_create_expr(
+  orderly::orderly_run("sim_estim",
+                       parameters = list(scenario = "small_sample",
+                                         n_steps = 20000,
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
+task_info(small_sample_20000) # 2d3036e7e0443d91c1659f7dd16d5e14
+task_result(small_sample_20000) # 
+
+moderate_sample_20000 <- task_create_expr(
+  orderly::orderly_run("sim_estim",
+                       parameters = list(scenario = "moderate_sample",
+                                         n_steps = 20000,
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
+task_info(moderate_sample_20000) # 01c41528f2156c92afb8daf2d4dc87a3
+task_result(moderate_sample_20000) # 
+
+very_large_sample_20000 <- task_create_expr(
+  orderly::orderly_run("sim_estim",
+                       parameters = list(scenario = "very_large_sample",
+                                         n_steps = 20000,
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
+task_info(very_large_sample_20000) # 97202b489b42f7e55ac8f6116168d7d4
+task_result(very_large_sample_20000) # 
+
+# "long_delays"
+# "short_delays"
+
+long_delays_20000 <- task_create_expr(
+  orderly::orderly_run("sim_estim",
+                       parameters = list(scenario = "long_delays",
+                                         n_steps = 20000,
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
+task_info(long_delays_20000) # 0c53a49690cd4bc929b6e5a5857d70b9
+task_result(long_delays_20000) # 
+
+short_delays_20000 <- task_create_expr(
+  orderly::orderly_run("sim_estim",
+                       parameters = list(scenario = "short_delays",
+                                         n_steps = 20000,
+                                         burnin = 10000,
+                                         thinning_factor = 10)),
+  parallel = hipercow_parallel("parallel"),
+  resources = resources
+)
+
+task_info(short_delays_20000) # 9f29decd1bf33835ba1aad304c3ef304
+task_result(short_delays_20000) # 
+
+# "high_variability"
+# "low_variability"
+# "lognormal_delays"
 
 # Summarise ------------------------------------------------------------------
 
@@ -275,4 +421,15 @@ sanity_10000 <- task_create_expr(
 )
 
 task_info(sanity_10000) # 0fad6de7944002a053982d36eae64f53 // a39b4f06a1b3c5e7ee4ebfc10b73ce01
-task_result(sanity_10000) # "20260424-140834-dae3cceb"
+task_result(sanity_10000) # "20260424-152842-6d290172"
+
+# v. large: 20,000 iterations, 10,000 burnin, 10 thinning (due to memory issues)
+resources <- hipercow_resources(cores = 1)
+sanity_20000 <- task_create_expr(
+  orderly::orderly_run("estim_diagnostics_sanity",
+                       parameters = list(n_steps = 20000, burnin = 10000)),
+  resources = resources
+)
+
+task_info(sanity_20000) # 9ad0addd53892170f4999c26df07e31f
+task_result(sanity_20000) # "20260427-124822-35ac60c2"

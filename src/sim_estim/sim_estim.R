@@ -2,7 +2,7 @@ library(orderly)
 library(datefixer)
 library(parallel)
 
-pars <- orderly_parameters(scenario = NULL, n_steps = NULL, burnin = NULL)
+pars <- orderly_parameters(scenario = NULL, n_steps = NULL, burnin = NULL, thinning_factor = NULL)
 
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
@@ -13,6 +13,7 @@ orderly_artefact(description = "MCMC outputs for simulation scenarios",
 selected_scenario <- scenario
 iterations <- n_steps
 burn <- burnin
+thin <- thinning_factor
 
 # Read in dependencies --------------------------------------------------------
 
@@ -39,6 +40,7 @@ if (is.null(selected_scenario) || identical(selected_scenario, "all")) {
 
 control <- mcmc_control(n_steps = iterations,
                         burnin = burn,
+                        thinning_factor = thin,
                         n_chains = 4,
                         earliest_possible_date = "2014-01-01",
                         latest_possible_date = "2015-01-01")
@@ -55,24 +57,33 @@ for (scenario in scenario_list) {
   sim_param <- sim_params[[scenario]]
   delay_info <- sim_param$delay_info
   
+  out_dir <- file.path(tempdir(), paste0("mcmc_", scenario))
+  dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+  
   # Get the cluster that hipercow created
   cl <- parallel::getDefaultCluster()
   
   parallel::clusterExport(cl, 
-                          varlist = c("sim_data_list", "delay_info", 
-                                      "hyperparameters", "control", "sampler"),
+                          varlist = c("delay_info", "hyperparameters",
+                                      "control", "sampler", "out_dir"),
                           envir = environment())
   
   # Load datefixer package on each worker
   parallel::clusterEvalQ(cl, library(datefixer))
   
-mcmc_samples <- parLapply(cl, seq_along(sim_data_list), function(sim) {
-  x <- sim_data_list[[sim]]
-  model <- datefixer_model(x$observed_data, delay_info, hyperparameters, control)
-  mcmc_run(model, sampler, control = control)
-})
-
-mcmc_all[[scenario]] <- mcmc_samples
+  # Fix memory issues - each worker saves their result and returns a path
+  paths <- parLapply(cl, sim_data_list, function(sim) {
+    model <- datefixer_model(sim$observed_data, delay_info, hyperparameters, control)
+    res <- mcmc_run(model, sampler, control = control)
+    p <- tempfile(pattern = "mcmc_", tmpdir = out_dir, fileext = ".rds")
+    saveRDS(res, p)
+    p
+  })
+  paths <- unlist(paths)
+  
+  mcmc_samples <- lapply(paths, readRDS)
+  names(mcmc_samples) <- names(sim_data_list)
+  mcmc_all[[scenario]] <- mcmc_samples
 }
 
 saveRDS(mcmc_all, "sim_estim.rds")
