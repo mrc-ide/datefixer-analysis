@@ -68,7 +68,9 @@ orderly_artefact(files = c("results/figures/trace_error.pdf",
                            "results/convergence_issues.rds",
                            "results/scenario_convergence.rds",
                            "results/figures/ess_plot.pdf",
-                           "results/low_ess_sims.rds"),
+                           "results/low_ess_sims.rds",
+                           "results/figures/rhat_vs_ess.pdf",
+                           "results/figures/width_vs_ess.pdf"),
                  description = "Analysis outputs")
 
 dir.create("results", showWarnings = FALSE)
@@ -749,6 +751,7 @@ trace_data_base <- all_draws %>%
     by = c("scenario", "param_idx", "group")
   )
 
+# if burnin is 0 then first 100 iterations removed from trace plots
 if (burnin == 0) trace_data_base <- trace_data_base %>% filter(iteration > 100)
 
 trace_10 <- make_trace_plot(
@@ -759,9 +762,9 @@ trace_10 <- make_trace_plot(
 )
 
 trace_all <- make_trace_plot(
-  trace_data_base %>% filter(iteration %% 5 == 0),
+  trace_data_base, #%>% filter(iteration %% 5 == 0),
   post_mean, true_mean,
-  "Trace plots (all simulations - 100 burnin)", "Mean Delay",
+  "Trace plots (all simulations)", "Mean Delay",
   add_symbols = TRUE
 )
 
@@ -1023,10 +1026,44 @@ ggsave("results/figures/ess_plot.pdf",
        width = 14, height = 7)
 
 # problematic runs
-low_ess_threshold <- 20
+low_ess_threshold <- 200
 problem_sims <- sim_summaries %>%
   filter(ess_bulk_mean < low_ess_threshold) %>%
-  distinct(scenario, param_label, group, simulation, ess_bulk_mean, true_mean, overall_mean_mean) %>%
+  distinct(scenario, param_label, group, simulation,
+           ess_bulk_mean, rhat_mean, true_mean, overall_mean_mean) %>%
   rename(est_mean = overall_mean_mean)
 
 saveRDS(problem_sims, "results/low_ess_sims.rds")
+
+# see if low ess correlates with poor rhat
+ggsave("results/figures/rhat_vs_ess.pdf",
+       sim_summaries %>%
+         ggplot(aes(x = ess_bulk_mean, y = rhat_mean)) +
+         geom_point(aes(colour = scenario), alpha = 0.4) +
+         geom_vline(xintercept = 200, linetype = "dotted") +
+         geom_hline(yintercept = 1.05, linetype = "dotted") +
+         facet_grid(rows = vars(scenario), cols = vars(param_label),
+                    scales = "free_y") +
+         labs(title = "Rhat vs ESS",
+              subtitle = "Top-left quadrant = above rhat and below bulk ess thresholds",
+              y = "Rhat", x = "Bulk ESS") +
+         theme_bw() +
+         theme(strip.text = element_text(size = 8, face = "bold"),
+               legend.position = "none"),
+       width = 12, height = 8)
+
+# see if low ESS correlates with wider crIs
+ggsave("results/figures/width_vs_ess.pdf",
+       sim_summaries %>%
+         mutate(is_low_ess = ess_bulk_mean < 200) %>%
+         ggplot(aes(x = is_low_ess, y = width95, colour = is_low_ess)) +
+         facet_grid(rows = vars(scenario), cols = vars(param_label),
+                    scales = "free_y") +
+         geom_jitter(width = 0.2, alpha = 0.6, size = 0.8) +
+         labs(title = "Low ESS vs credible intervals width",
+              x = "ESS < 200", y = "Width of 95% CrI") +
+         theme_bw() +
+         theme(strip.text = element_text(size = 8, face = "bold"),
+               legend.position = "none"),
+       width = 12, height = 8)
+
