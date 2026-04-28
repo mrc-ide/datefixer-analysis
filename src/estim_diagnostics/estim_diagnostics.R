@@ -437,14 +437,14 @@ sim_summaries_mean <- sim_summaries_raw %>%
   filter(type == "mean") %>%
   select(-type) %>%
   rename(
-    overall_mean_mean = overall_mean,
-    overall_q025_mean = overall_q025,
-    overall_q25_mean = overall_q25,
-    overall_q75_mean = overall_q75,
-    overall_q975_mean = overall_q975,
-    rhat_mean = rhat,
-    ess_bulk_mean = ess_bulk,
-    ess_tail_mean = ess_tail
+    overall_mean_est = overall_mean,
+    overall_q025_est = overall_q025,
+    overall_q25_est = overall_q25,
+    overall_q75_est = overall_q75,
+    overall_q975_est = overall_q975,
+    rhat_est = rhat,
+    ess_bulk_est = ess_bulk,
+    ess_tail_est = ess_tail
   )
 
 sim_summaries_cv <- sim_summaries_raw %>%
@@ -474,16 +474,16 @@ sim_summaries <- sim_summaries_mean %>%
     by = c("scenario", "simulation", "param_idx")
   ) %>%
   mutate(
-    bias_gt = overall_mean_mean - true_mean,
-    bias_emp = overall_mean_mean - empirical_mean,
+    bias_gt = overall_mean_est - true_mean,
+    bias_emp = overall_mean_est - empirical_mean,
     cv_bias_gt = overall_mean_cv - true_cv,
     cv_bias_emp = overall_mean_cv - empirical_cv,
-    cov95_gt = true_mean >= overall_q025_mean & true_mean <= overall_q975_mean,
-    cov95_emp = empirical_mean >= overall_q025_mean & empirical_mean <= overall_q975_mean,
-    cov50_gt = true_mean >= overall_q25_mean & true_mean <= overall_q75_mean,
-    cov50_emp = empirical_mean >= overall_q25_mean & empirical_mean <= overall_q75_mean,
+    cov95_gt = true_mean >= overall_q025_est & true_mean <= overall_q975_est,
+    cov95_emp = empirical_mean >= overall_q025_est & empirical_mean <= overall_q975_est,
+    cov50_gt = true_mean >= overall_q25_est & true_mean <= overall_q75_est,
+    cov50_emp = empirical_mean >= overall_q25_est & empirical_mean <= overall_q75_est,
     cv_cov95_gt = true_cv >= overall_q025_cv & true_cv <= overall_q975_cv,
-    width95 = overall_q975_mean - overall_q025_mean,
+    width95 = overall_q975_est - overall_q025_est,
     cv_width95 = overall_q975_cv - overall_q025_cv
   )
 
@@ -504,8 +504,8 @@ agg_summaries <- sim_summaries %>%
   group_by(scenario, param_label, group) %>%
   summarise(
     n_sims = n(),
-    avg_rhat = mean(rhat_mean, na.rm = TRUE),
-    min_ess = min(ess_bulk_mean, na.rm = TRUE),
+    avg_rhat = mean(rhat_est, na.rm = TRUE),
+    min_ess = min(ess_bulk_est, na.rm = TRUE),
     across(c(bias_gt, bias_emp, cv_bias_gt, cv_bias_emp),
            list(avg = ~median(., na.rm = TRUE), 
                 sd = ~sd(., na.rm = TRUE),
@@ -998,7 +998,7 @@ ggsave("results/figures/observed_patterns.pdf",
 # ESS plot
 ggsave("results/figures/ess_plot.pdf",
        sim_summaries %>%
-         ggplot(aes(x = scenario, y = ess_bulk_mean, fill = scenario)) +
+         ggplot(aes(x = scenario, y = ess_bulk_est, fill = scenario)) +
          geom_violin(alpha = 0.3, scale = "width") +
          geom_jitter(aes(colour = scenario), width = 0.2, alpha = 0.5, size = 1) +
          geom_hline(yintercept = 200, linetype = "dashed", colour = "black", linewidth = 0.8) +
@@ -1019,17 +1019,17 @@ ggsave("results/figures/ess_plot.pdf",
 # problematic runs
 low_ess_threshold <- 200
 problem_sims <- sim_summaries %>%
-  filter(ess_bulk_mean < low_ess_threshold) %>%
+  filter(ess_bulk_est < low_ess_threshold) %>%
   distinct(scenario, param_label, group, simulation,
-           ess_bulk_mean, rhat_mean, true_mean, overall_mean_mean) %>%
-  rename(est_mean = overall_mean_mean)
+           ess_bulk_est, rhat_est, true_mean, overall_mean_est) %>%
+  rename(est_mean = overall_mean_est)
 
 saveRDS(problem_sims, "results/low_ess_sims.rds")
 
 # see if low ess correlates with poor rhat
 ggsave("results/figures/rhat_vs_ess.pdf",
        sim_summaries %>%
-         ggplot(aes(x = ess_bulk_mean, y = rhat_mean)) +
+         ggplot(aes(x = ess_bulk_est, y = rhat_est)) +
          geom_point(aes(colour = scenario), alpha = 0.4) +
          geom_vline(xintercept = 200, linetype = "dotted") +
          geom_hline(yintercept = 1.05, linetype = "dotted") +
@@ -1046,7 +1046,7 @@ ggsave("results/figures/rhat_vs_ess.pdf",
 # see if low ESS correlates with wider crIs
 ggsave("results/figures/width_vs_ess.pdf",
        sim_summaries %>%
-         mutate(is_low_ess = ess_bulk_mean < 200) %>%
+         mutate(is_low_ess = ess_bulk_est < 200) %>%
          ggplot(aes(x = is_low_ess, y = width95, colour = is_low_ess)) +
          facet_grid(rows = vars(scenario), cols = vars(param_label),
                     scales = "free_y") +
