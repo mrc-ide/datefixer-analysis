@@ -27,10 +27,10 @@ orderly_dependency("sim_data", "latest", "sim_data.rds")
 # Scenario name mapping for better plot labels
 scenario_labels <- c(
   "baseline" = "Baseline",
-  "no_error" = "Missing dates only",
-  "no_missing" = "Errors only",
+  "no_error" = "Missing dates only (0.2)",
+  "no_missing" = "Errors only (0.05)",
   "no_error_no_missing" = "No errors or missing dates",
-  "low_missingness" = "Low missingness",
+  "low_missingness" = "Low missingness (0.05)",
   "low_error" = "Low error (0.02)",
   "high_error" = "High error (0.2)",
   "very_small_sample" = "Very small sample (group size 10)",
