@@ -59,13 +59,9 @@ orderly_artefact(files = c("results/figures/trace_error.pdf",
                            "results/figures/trace_delays_10.pdf",
                            "results/figures/trace_delays_all.pdf",
                            "results/figures/bias_plot_delays_gt.pdf",
-                           #"results/figures/bias_plot_delays_emp.pdf",
                            "results/figures/bias_plot_error_gt.pdf",
-                           #"results/figures/bias_plot_error_emp.pdf",
                            "results/figures/bias_plot_cv_gt.pdf",
-                           #"results/figures/bias_plot_cv_emp.pdf",
                            "results/figures/coverage_plot.pdf",
-                           #"results/figures/coverage_plot_emp.pdf",
                            "results/sim_summaries.rds",
                            "results/agg_summaries.rds",
                            "results/figures/posterior_delay_mean.pdf",
@@ -82,7 +78,7 @@ orderly_artefact(files = c("results/figures/trace_error.pdf",
                            "results/convergence_issues.rds",
                            "results/scenario_convergence.rds",
                            "results/figures/ess_plot.pdf",
-                           "results/low_ess_sims.rds",
+                           "results/convergence_issues_by_individual.rds",
                            "results/figures/rhat_vs_ess.pdf",
                            "results/figures/width_vs_ess.pdf"),
                  description = "Analysis outputs")
@@ -690,7 +686,7 @@ trace_prob_error <- all_draws %>%
   mutate(sim_chain = paste(simulation, chain, sep = "_")) %>%
   ggplot(aes(x = iteration, y = post_mean,
              colour = factor(chain), group = sim_chain)) +
-  geom_line(alpha = 0.3) +
+  rasterise(geom_line(alpha = 0.3), dpi = 300) +
   geom_hline(aes(yintercept = true_mean),
              linetype = "dashed", linewidth = 0.8, colour = "black") +
   facet_grid(cols = vars(scenario), scales = "free_y") +
@@ -1018,13 +1014,16 @@ ggsave("results/figures/ess_plot.pdf",
 
 # problematic runs
 low_ess_threshold <- 200
+rhat_threshold <- 1.05
 problem_sims <- sim_summaries %>%
-  filter(ess_bulk_est < low_ess_threshold) %>%
+  filter(ess_bulk_est < low_ess_threshold | rhat_est > rhat_threshold) %>%
   distinct(scenario, param_label, group, simulation,
            ess_bulk_est, rhat_est, true_mean, overall_mean_est) %>%
-  rename(est_mean = overall_mean_est)
+  rename(est_mean = overall_mean_est) %>%
+  mutate(rhat_ok = rhat_est < rhat_threshold,
+         ess_ok  = ess_bulk_est > low_ess_threshold)
 
-saveRDS(problem_sims, "results/low_ess_sims.rds")
+saveRDS(problem_sims, "results/convergence_issues_by_individual.rds")
 
 # see if low ess correlates with poor rhat
 ggsave("results/figures/rhat_vs_ess.pdf",
@@ -1046,7 +1045,7 @@ ggsave("results/figures/rhat_vs_ess.pdf",
 # see if low ESS correlates with wider crIs
 ggsave("results/figures/width_vs_ess.pdf",
        sim_summaries %>%
-         mutate(is_low_ess = ess_bulk_est < 200) %>%
+         mutate(is_low_ess = ess_bulk_est < low_ess_threshold) %>%
          ggplot(aes(x = is_low_ess, y = width95, colour = is_low_ess)) +
          facet_grid(rows = vars(scenario), cols = vars(param_label),
                     scales = "free_y") +
