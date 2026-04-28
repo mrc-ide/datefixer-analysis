@@ -1,5 +1,3 @@
-# SANITY CHECK
-
 library(orderly)
 library(dplyr)
 library(tidyr)
@@ -21,7 +19,7 @@ pars <- orderly_parameters(n_steps = NULL, burnin = NULL, thinning_factor = NULL
 n_steps <- n_steps
 burnin <- burnin
 thinning_factor <- thinning_factor
-scenarios <- scenarios
+scenarios <- strsplit(scenarios, ",")[[1]]
 
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
@@ -46,7 +44,7 @@ scenario_labels <- c(
   "lognormal_delays" = "Lognormal delays"
 )
 
-scenario_labels <- filter(scenario_labels %in% scenarios)
+scenario_labels <- scenario_labels[intersect(names(scenario_labels), scenarios)]
 
 for (s in scenarios) {
   orderly_dependency("sim_estim",

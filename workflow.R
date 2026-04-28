@@ -274,14 +274,12 @@ task_result(lognormal_delays_20000) #
 
 ## sanity check diagnostics -----------------------
 
-# 20,000 iterations, 10,000 burnin, 10 thinning (due to memory issues)
 resources <- hipercow_resources(cores = 1)
 sanity_20000 <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = c("baseline", "no_error",
-                                    "no_missing", "no_error_no_missing"))),
+                      scenarios = "baseline,no_error,no_missing,no_error_no_missing")),
   resources = resources
 )
 
@@ -296,12 +294,12 @@ variable_error <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = c("baseline", "low_error", "high_error"))),
+                      scenarios = "baseline,low_error,high_error")),
   resources = resources
 )
 
 task_info(variable_error)
-#variable_error <-
+#variable_error <- "12850f364289f719e0509e76e28961bb"
 task_result(variable_error) # 
 
 ## variable sample size -----------------------
@@ -311,9 +309,7 @@ variable_sample <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = c("baseline", "very_small_sample",
-                                    "small_sample", "moderate_sample",
-                                    "very_large_sample"))),
+                      scenarios = "baseline,very_small_sample,small_sample,moderate_sample,very_large_sample")),
   resources = resources
 )
 
@@ -329,12 +325,12 @@ variable_delays <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = c("baseline", "long_delays", "short_delays"))),
+                      scenarios = "baseline,long_delays,short_delays")),
   resources = resources
 )
 
 task_info(variable_delays)
-#variable_delays <-
+#variable_delays <- bde2d5af9866b184b5dde76e8c8e2a0d
 task_result(variable_delays) # 
 
 ## variable cv -----------------------
@@ -344,7 +340,7 @@ variable_cv <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = c("baseline", "high_variability", "low_variability"))),
+                      scenarios = c("baseline,high_variability,low_variability"))),
   resources = resources
 )
 
