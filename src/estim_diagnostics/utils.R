@@ -1,7 +1,9 @@
 library(tidyverse)
 
 extract_est_df <- function(MCMCres,
-                           theta_true = NULL) {
+                           theta_true = NULL,
+                           true_dat = NULL,
+                           index_dates = NULL) {
   
   iterations <- seq_along(MCMCres$theta_chain)
   draws_list <- list()
@@ -24,7 +26,7 @@ extract_est_df <- function(MCMCres,
   
   est_draws <- bind_rows(draws_list)
   
-  # Estimate quantiles
+  # Posterior summaries
   est_quant <- est_draws %>%
     group_by(group, delay_index) %>%
     summarise(
@@ -47,7 +49,7 @@ extract_est_df <- function(MCMCres,
       .groups = "drop"
     )
   
-  # Add true values for reference
+  # Compare to theta_true (true parameters) ----------------------------------
   if (!is.null(theta_true)) {
     true_df <- imap(theta_true$mu, \(mu_vec, g) {
       tibble(
@@ -58,7 +60,7 @@ extract_est_df <- function(MCMCres,
       )
     }) |> list_rbind()
     
-    est_summary <- est_quant %>%
+    est_quant <- est_quant %>%
       left_join(true_df, by = c("group", "delay_index")) %>%
       mutate(
         mu_bias = mu_mean - true_mu,
@@ -73,10 +75,43 @@ extract_est_df <- function(MCMCres,
         cv_width50 = cv_upper50 - cv_lower50
       )
   }
+  
+  # Compare to simulated empirical delays (true_dat) -------------------------
+  if (!is.null(true_dat) && !is.null(index_dates)) {
+    emp_df <- map_dfr(seq_along(true_dat), function(g) {
+      delays_mat <- true_dat[[g]]
+      idx_mat    <- index_dates[[g]]
+      n_delays   <- ncol(idx_mat)
+      
+      map_dfr(seq_len(n_delays), function(d) {
+        idx_start <- idx_mat[1, d]
+        idx_end   <- idx_mat[2, d]
+        delays <- delays_mat[, idx_end] - delays_mat[, idx_start]
+        
+        tibble(
+          group = paste0("group_", g),
+          delay_index = d,
+          mu_empirical = mean(delays),
+          cv_empirical = sd(delays) / mean(delays)
+        )
+      })
+    })
+    
+    est_quant <- est_quant %>%
+      left_join(emp_df, by = c("group", "delay_index")) %>%
+      mutate(
+        mu_bias_emp = mu_mean - mu_empirical,
+        cv_bias_emp = cv_mean - cv_empirical,
+        mu_cov95_emp = between(mu_empirical, mu_lower95, mu_upper95),
+        cv_cov95_emp = between(cv_empirical, cv_lower95, cv_upper95),
+        mu_cov50_emp = between(mu_empirical, mu_lower50, mu_upper50),
+        cv_cov50_emp = between(cv_empirical, cv_lower50, cv_upper50)
+      )
+  }
     
   list(
-    draws    = est_draws,
-    summary = est_summary
+    draws   = est_draws,
+    summary = est_quant
   )
 }
 
