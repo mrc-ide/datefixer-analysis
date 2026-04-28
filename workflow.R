@@ -265,8 +265,9 @@ low_missingness_20000 <- task_create_expr(
   resources = resources
 )
 
-task_info(low_missingness_20000) # 85d147572307ea16fe9ee1ba7ddf327a
-task_result(low_missingness_20000) # 
+task_info(low_missingness_20000)
+#low_missingness_20000 <- "85d147572307ea16fe9ee1ba7ddf327a"
+task_result(low_missingness_20000) # "20260427-135452-4ffd7c3e"
 
 low_error_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -278,8 +279,9 @@ low_error_20000 <- task_create_expr(
   resources = resources
 )
 
-task_info(low_error_20000) # 2f7f615191cfd9302bfd97761e12eede
-task_result(low_error_20000) # 
+task_info(low_error_20000)
+#low_error_20000 <- "2f7f615191cfd9302bfd97761e12eede"
+task_result(low_error_20000) # "20260427-135503-21fcbfc3"
 
 high_error_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -291,8 +293,9 @@ high_error_20000 <- task_create_expr(
   resources = resources
 )
 
-task_info(high_error_20000) # 2c7f0924c0903ef39d14aef6774a5354
-task_result(high_error_20000) # 
+task_info(high_error_20000)
+#high_error_20000 <- "2c7f0924c0903ef39d14aef6774a5354"
+task_result(high_error_20000) # "20260427-135517-87bedaf4"
 
 ## sample sizes
 
@@ -306,8 +309,9 @@ very_small_sample_20000 <- task_create_expr(
   resources = resources
 )
 
-task_info(very_small_sample_20000) # 51579511835c791dae098b6694565a3e
-task_result(very_small_sample_20000) # 
+task_info(very_small_sample_20000)
+#very_small_sample_20000 <- "51579511835c791dae098b6694565a3e"
+task_result(very_small_sample_20000) # "20260427-135527-8194d072"
 
 small_sample_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -319,8 +323,9 @@ small_sample_20000 <- task_create_expr(
   resources = resources
 )
 
-task_info(small_sample_20000) # 2d3036e7e0443d91c1659f7dd16d5e14
-task_result(small_sample_20000) # 
+task_info(small_sample_20000)
+#small_sample_20000 <- "2d3036e7e0443d91c1659f7dd16d5e14"
+task_result(small_sample_20000) # "20260427-135558-96648c33"
 
 moderate_sample_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -332,8 +337,9 @@ moderate_sample_20000 <- task_create_expr(
   resources = resources
 )
 
-task_info(moderate_sample_20000) # 01c41528f2156c92afb8daf2d4dc87a3
-task_result(moderate_sample_20000) # 
+task_info(moderate_sample_20000)
+#moderate_sample_20000 <- "01c41528f2156c92afb8daf2d4dc87a3"
+task_result(moderate_sample_20000) # "20260427-135543-1a353f28"
 
 very_large_sample_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -345,11 +351,9 @@ very_large_sample_20000 <- task_create_expr(
   resources = resources
 )
 
-task_info(very_large_sample_20000) # 97202b489b42f7e55ac8f6116168d7d4
+task_info(very_large_sample_20000)
+#very_large_sample_20000 <- "97202b489b42f7e55ac8f6116168d7d4"
 task_result(very_large_sample_20000) # 
-
-# "long_delays"
-# "short_delays"
 
 long_delays_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -361,8 +365,9 @@ long_delays_20000 <- task_create_expr(
   resources = resources
 )
 
-task_info(long_delays_20000) # 0c53a49690cd4bc929b6e5a5857d70b9
-task_result(long_delays_20000) # 
+task_info(long_delays_20000)
+long_delays_20000 <- "0c53a49690cd4bc929b6e5a5857d70b9"
+task_result(long_delays_20000) # "20260427-135830-2ff689cc"
 
 short_delays_20000 <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -374,8 +379,9 @@ short_delays_20000 <- task_create_expr(
   resources = resources
 )
 
-task_info(short_delays_20000) # 9f29decd1bf33835ba1aad304c3ef304
-task_result(short_delays_20000) # 
+task_info(short_delays_20000)
+short_delays_20000 <- "9f29decd1bf33835ba1aad304c3ef304"
+task_result(short_delays_20000) # "20260427-135811-9e4802e6"
 
 # "high_variability"
 # "low_variability"
