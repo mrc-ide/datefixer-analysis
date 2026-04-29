@@ -79,6 +79,7 @@ orderly_artefact(files = c("results/figures/trace_error.pdf",
                            "results/scenario_convergence.rds",
                            "results/figures/ess_plot.pdf",
                            "results/convergence_issues_by_individual.rds",
+                           "results/figures/problem_traces",
                            "results/figures/rhat_vs_ess.pdf",
                            "results/figures/width_vs_ess.pdf"),
                  description = "Analysis outputs")
@@ -1024,6 +1025,53 @@ problem_sims <- sim_summaries %>%
          ess_ok  = ess_bulk_est > low_ess_threshold)
 
 saveRDS(problem_sims, "results/convergence_issues_by_individual.rds")
+
+# problematic trace plots
+problem_dir <- "results/figures/problem_traces"
+dir.create(problem_dir, recursive = TRUE, showWarnings = FALSE)
+
+  # unique scenario/simulations that had issues
+problem_combos <- problem_sims %>%
+  distinct(scenario, simulation)
+
+true_params_plot <- true_params_chr %>%
+  select(scenario, param_label, group, true_mean) %>%
+  mutate(group = forcats::fct_na_value_to_level(group, "Global"))
+
+if (nrow(problem_combos) > 0) {
+  
+  for(i in 1:nrow(problem_combos)) {
+    scen <- as.character(problem_combos$scenario[i])
+    sim <- problem_combos$simulation[i]
+    
+    plot_data <- all_draws %>%
+      filter(scenario == scen, simulation == sim) %>%
+      mutate(group = forcats::fct_na_value_to_level(group, "Global"))
+    
+    failed_params <- problem_sims %>%
+      filter(scenario == scen, simulation == sim) %>%
+      pull(param_label) %>%
+      unique() %>%
+      paste(collapse = ", ")
+    
+    p <- ggplot(plot_data, aes(x = iteration, y = post_mean, colour = factor(chain))) +
+      rasterise(geom_line(alpha = 0.6, linewidth = 0.5), dpi = 300) +
+      geom_hline(data = true_params_plot %>% filter(scenario == scen),
+                 aes(yintercept = true_mean), linetype = "dashed", colour = "black", linewidth = 0.8) +
+      facet_grid(rows = vars(group), cols = vars(param_label), scales = "free_y") +
+      labs(title = glue("Diagnostic Trace: {scen} (Sim {sim})"),
+           subtitle = glue("Failed params: {failed_params}\nDashed line = True Value"),
+           x = "Iteration", y = "Estimate", colour = "Chain") +
+      theme_bw() +
+      theme(strip.text = element_text(size = 7, face = "bold"),
+            legend.position = "bottom")
+    
+    clean_scen <- str_replace_all(scen, "[^[:alnum:]]", "_")
+    file_name <- file.path(problem_dir, glue("trace_{clean_scen}_sim{sim}.pdf"))
+    
+    ggsave(file_name, plot = p, width = 16, height = 10)
+  }
+}
 
 # see if low ess correlates with poor rhat
 ggsave("results/figures/rhat_vs_ess.pdf",
