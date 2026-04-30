@@ -284,8 +284,8 @@ sanity <- task_create_expr(
 )
 
 task_info(sanity)
-#sanity <- "072a39f93b4f1dd4831ec713feb93105"
-task_result(sanity) # "20260430-131813-075b3c00"
+#sanity <- "4f54bea0a2fa28c598514f58ce616e5c"
+task_result(sanity) # 
 
 ## variable error diagnostics -----------------------
 
@@ -299,8 +299,8 @@ variable_error <- task_create_expr(
 )
 
 task_info(variable_error)
-#variable_error <- "6b4a7e31a58c21f91433ef2432c2b568"
-task_result(variable_error) # "20260430-131826-24b5b841"
+#variable_error <- "6f95e0624f0a0fdca2b1c9e3d16fdbf3"
+task_result(variable_error) # 
 
 ## variable group sample size -----------------------
 
@@ -314,8 +314,8 @@ variable_sample <- task_create_expr(
 )
 
 task_info(variable_sample)
-#variable_sample <- "5e0c77f00778dc60d5a322d89398a3c4"
-task_result(variable_sample) # "20260430-131839-ed55eebe"
+#variable_sample <- "6dff59887269c44059bdfd503fdb2d85"
+task_result(variable_sample) # 
 
 
 ## variable delay diagnostics -----------------------
@@ -330,8 +330,8 @@ variable_delays <- task_create_expr(
 )
 
 task_info(variable_delays)
-#variable_delays <- "2d748dc746b6ea932c13310be92c00bc"
-task_result(variable_delays) # "20260430-131850-d3c23c88"
+#variable_delays <- "a80ce9ed3d0f07e950b231d63335adb7"
+task_result(variable_delays) # 
 
 ## variable cv -----------------------
 
@@ -345,8 +345,8 @@ variable_cv <- task_create_expr(
 )
 
 task_info(variable_cv)
-#variable_cv <- "c58b573d51a68d7008f7d3774234a711"
-task_result(variable_cv) # "20260430-131854-66372454"
+#variable_cv <- "8d2ae79bd80ba8cf11266bc6f2127c5f"
+task_result(variable_cv) # 
 
 
 ## variable delay type -----------------------
@@ -361,5 +361,5 @@ variable_distr <- task_create_expr(
 )
 
 task_info(variable_distr)
-#variable_distr <- "61c5825a964fa4d3fd28b59fad6f672d"
-task_result(variable_distr) # "20260430-131904-d42eeb20"
+#variable_distr <- "5a1cbdb6d9e13d7c3bba643dae016d76"
+task_result(variable_distr) # "20260430-160454-f2244078"
