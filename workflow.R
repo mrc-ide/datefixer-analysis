@@ -284,8 +284,8 @@ sanity <- task_create_expr(
 )
 
 task_info(sanity)
-#sanity <- "e0ed6b73b5c1e619a485e5964003c471"
-task_result(sanity) # "20260429-134428-6d01b20b"
+#sanity <- "072a39f93b4f1dd4831ec713feb93105"
+task_result(sanity) # 
 
 ## variable error diagnostics -----------------------
 
@@ -299,10 +299,10 @@ variable_error <- task_create_expr(
 )
 
 task_info(variable_error)
-#variable_error <- "2b42893fd868af1f7cb6709b243b47ae"
-task_result(variable_error) # "20260428-102000-aec1db48"
+#variable_error <- "6b4a7e31a58c21f91433ef2432c2b568"
+task_result(variable_error) # 
 
-## variable sample size -----------------------
+## variable group sample size -----------------------
 
 resources <- hipercow_resources(cores = 1)
 variable_sample <- task_create_expr(
@@ -314,8 +314,8 @@ variable_sample <- task_create_expr(
 )
 
 task_info(variable_sample)
-#variable_sample <- "f78cbdb9f4c5f084dbd9c2bd7c53e4db"
-task_result(variable_sample) # "20260429-131409-c951c352"
+#variable_sample <- "5e0c77f00778dc60d5a322d89398a3c4"
+task_result(variable_sample) # 
 
 
 ## variable delay diagnostics -----------------------
@@ -330,8 +330,8 @@ variable_delays <- task_create_expr(
 )
 
 task_info(variable_delays)
-#variable_delays <- e306386c4c97b1b6a0657861af500b60
-task_result(variable_delays) # "20260428-102012-873a2bf3"
+#variable_delays <- "2d748dc746b6ea932c13310be92c00bc"
+task_result(variable_delays) # 
 
 ## variable cv -----------------------
 
@@ -345,6 +345,21 @@ variable_cv <- task_create_expr(
 )
 
 task_info(variable_cv)
-#variable_cv <- "496c5f03959c9f5aa5876f563542691c"
-task_result(variable_cv) # "20260429-130830-6ed4bdd0"
+#variable_cv <- "c58b573d51a68d7008f7d3774234a711"
+task_result(variable_cv) # 
 
+
+## variable delay type -----------------------
+
+resources <- hipercow_resources(cores = 1)
+variable_distr <- task_create_expr(
+  orderly::orderly_run(
+    "estim_diagnostics",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenarios = c("baseline,lognormal_delays"))),
+  resources = resources
+)
+
+task_info(variable_distr)
+#variable_distr <- "61c5825a964fa4d3fd28b59fad6f672d"
+task_result(variable_distr) # 
