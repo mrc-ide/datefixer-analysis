@@ -26,25 +26,26 @@ orderly_dependency("sim_data", "latest", "sim_data.rds")
 
 # Scenario name mapping for better plot labels
 scenario_labels <- c(
-  "baseline" = "Baseline",
-  "no_error" = "Missing dates only (0.2)",
-  "no_missing" = "Errors only (0.05)",
-  "no_error_no_missing" = "No errors or missing dates",
   "low_missingness" = "Low missingness (0.05)",
-  "low_error" = "Low error (0.02)",
-  "high_error" = "High error (0.2)",
   "very_small_sample" = "Very small groups (n = 10)",
   "small_sample" = "Small groups (n = 20)",
   "moderate_sample" = "Moderate groups (n = 50)",
+  "high_error" = "High error (0.2)",
+  "short_delays" = "Short delays (0.5x baseline)",
+  "low_variability" = "Low variability (0.5x baseline cv)",
+  "baseline" = "Baseline", # error = 0.05, missing = 0.2
+  "low_error" = "Low error (0.02)",
+  "no_error" = "Missing dates only (0.2)",
+  "no_missing" = "Errors only (0.05)",
+  "no_error_no_missing" = "No errors or missing dates",
   "very_large_sample" = "Very large groups (n = 500)",
   "long_delays" = "Long delays (2x baseline)",
-  "short_delays" = "Short delays (0.5x baseline)",
   "high_variability" = "High variability (2x baseline cv)",
-  "low_variability" = "Low variability (0.5x baseline cv)",
   "lognormal_delays" = "Lognormal delays"
 )
 
 scenario_labels <- scenario_labels[intersect(names(scenario_labels), scenarios)]
+scenario_labels <- factor(scenario_labels, levels = scenario_labels)
 
 for (s in scenarios) {
   orderly_dependency("sim_estim",
@@ -788,9 +789,10 @@ make_error_bias_plot <- function(data, bias_col, sd_col, title, subtitle) {
     geom_point(size = 2.5, colour = "midnightblue") +
     labs(title = title, subtitle = subtitle, y = "Median Bias", x = "") +
     theme_minimal() +
-    theme(
-      panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)
-    )
+    theme(strip.text = element_text(size = 10, face = "bold"),
+          axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "none",
+          panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
 }
 
 # Compare to true mean delay (ground truth)
@@ -910,38 +912,61 @@ ggsave(
 # Aggregate draws across simulations for cleaner visualisation
 posterior_data <- all_draws %>%
   filter(param_label != "probability of error") %>%
-  mutate(scenario = as.character(scenario)) %>%
-  left_join(
-    select(true_params_chr, scenario, param_idx, group, true_mean, true_cv),
-    by = c("scenario", "param_idx", "group")
-  )
+  mutate(scenario = as.character(scenario))
+
+# Handle long tails (1% and 99% boundaries)
+posterior_data_trimmed <- posterior_data %>%
+  group_by(param_label, group) %>%
+  mutate(lower_bound = quantile(post_mean, 0.01, na.rm = TRUE),
+         upper_bound = quantile(post_mean, 0.99, na.rm = TRUE)) %>%
+  filter(post_mean >= lower_bound & post_mean <= upper_bound) %>%
+  ungroup()
+
+ref_lines <- true_params_chr %>%
+  filter(param_idx > 0) %>%
+  group_by(param_label, group) %>%
+  mutate(mean_shared = n_distinct(true_mean) == 1,
+         cv_shared = n_distinct(true_cv) == 1) %>%
+  ungroup()
 
 # Mean delay posteriors
 ggsave("results/figures/posterior_delay_mean.pdf",
-       ggplot(posterior_data, aes(x = post_mean, fill = scenario, colour = scenario)) +
-         geom_density(alpha = 0.3) +
-         geom_vline(aes(xintercept = true_mean), linetype = "dashed", linewidth = 0.8) +
+       ggplot(posterior_data_trimmed,
+              aes(x = post_mean, colour = scenario)) +
+         geom_density() +
+         geom_vline(data = ref_lines %>% filter(mean_shared) %>% distinct(param_label, group, true_mean),
+                    aes(xintercept = true_mean),
+                    colour = "black", linetype = "dashed", linewidth = 0.8) +
+         geom_vline(data = ref_lines %>% filter(!mean_shared),
+                    aes(xintercept = true_mean, colour = scenario),
+                    linetype = "dashed", linewidth = 0.8) +
          facet_grid(rows = vars(group), cols = vars(param_label), scales = "free") +
-         labs(title    = "Posterior Distributions: Mean Delay",
+         labs(title = "Posterior Distributions: Mean Delay",
               subtitle = "Dashed line = true value. Densities across all simulations.",
-              x = "Mean Delay (days)", y = "Density",
-              fill = "Scenario", colour = "Scenario") +
+              x = "Mean Delay (days)", y = "Density", colour = "Scenario") +
          theme_minimal() +
-         theme(strip.text  = element_text(size = 7, face = "bold"),
+         theme(strip.text = element_text(size = 7, face = "bold"),
                axis.text.x = element_text(angle = 45, hjust = 1),
                panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)),
        width = 14, height = 10)
 
 # CV delay posteriors
 ggsave("results/figures/posterior_cv.pdf",
-       ggplot(posterior_data, aes(x = post_cv, fill = scenario, colour = scenario)) +
-         geom_density(alpha = 0.3) +
-         geom_vline(aes(xintercept = true_cv), linetype = "dashed", linewidth = 0.8) +
+       ggplot(posterior_data_trimmed,
+              aes(x = post_cv, colour = scenario)) +
+         geom_density() +
+         geom_vline(data = ref_lines %>% filter(cv_shared) %>% distinct(param_label, group, true_mean),
+                    aes(xintercept = true_mean),
+                    colour = "black", linetype = "dashed", linewidth = 0.8) +
+         geom_vline(data = ref_lines %>% filter(!cv_shared),
+                    aes(xintercept = true_mean, colour = scenario),
+                    linetype = "dashed", linewidth = 0.8) +
          facet_grid(rows = vars(group), cols = vars(param_label), scales = "free") +
+         scale_colour_manual(values = c("shared" = "black"), aesthetics = "colour",
+                             breaks = unique(posterior_data$scenario)) +
          labs(title    = "Posterior Distributions: CV",
               subtitle = "Dashed line = true value. Densities across all simulations.",
-              x = "Coefficient of Variation", y = "Density",
-              fill = "Scenario", colour = "Scenario") +
+              x = "Coefficient of Variation", y = "Density", colour = "Scenario") +
          theme_minimal() +
          theme(strip.text  = element_text(size = 7, face = "bold"),
                axis.text.x = element_text(angle = 45, hjust = 1),
