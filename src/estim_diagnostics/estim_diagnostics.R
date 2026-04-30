@@ -956,14 +956,12 @@ ggsave("results/figures/posterior_cv.pdf",
               aes(x = post_cv, colour = scenario)) +
          geom_density() +
          geom_vline(data = ref_lines %>% filter(cv_shared) %>% distinct(param_label, group, true_mean),
-                    aes(xintercept = true_mean),
+                    aes(xintercept = true_cv),
                     colour = "black", linetype = "dashed", linewidth = 0.8) +
          geom_vline(data = ref_lines %>% filter(!cv_shared),
-                    aes(xintercept = true_mean, colour = scenario),
+                    aes(xintercept = true_cv, colour = scenario),
                     linetype = "dashed", linewidth = 0.8) +
          facet_grid(rows = vars(group), cols = vars(param_label), scales = "free") +
-         scale_colour_manual(values = c("shared" = "black"), aesthetics = "colour",
-                             breaks = unique(posterior_data$scenario)) +
          labs(title    = "Posterior Distributions: CV",
               subtitle = "Dashed line = true value. Densities across all simulations.",
               x = "Coefficient of Variation", y = "Density", colour = "Scenario") +
