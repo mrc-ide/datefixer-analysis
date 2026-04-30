@@ -43,9 +43,9 @@ task_result(sim100) #"20260422-150253-f5b3e775"
 # "very_large_sample" x
 # "long_delays" x
 # "short_delays" x
-# "high_variability"
-# "low_variability"
-# "lognormal_delays"
+# "high_variability" x
+# "low_variability" x
+# "lognormal_delays" x
 
 baseline <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -197,7 +197,7 @@ very_large_sample <- task_create_expr(
 
 task_info(very_large_sample)
 #very_large_sample <- "97202b489b42f7e55ac8f6116168d7d4"
-task_result(very_large_sample) # 
+task_result(very_large_sample) # "20260427-135551-aad62768"
 
 long_delays <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -239,7 +239,7 @@ high_variability <- task_create_expr(
 
 task_info(high_variability)
 #high_variability <- "4349a21db74ba2caac76653b57ddb194"
-task_result(high_variability) #
+task_result(high_variability) # "20260428-103029-d9cf5378"
 
 low_variability <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -253,7 +253,7 @@ low_variability <- task_create_expr(
 
 task_info(low_variability)
 #low_variability <- "de95235ee7bbad6be72b726fad52f26d"
-task_result(low_variability) #
+task_result(low_variability) # "20260428-103039-33eb7860"
 
 lognormal_delays <- task_create_expr(
   orderly::orderly_run("sim_estim",
@@ -267,7 +267,7 @@ lognormal_delays <- task_create_expr(
 
 task_info(lognormal_delays)
 #lognormal_delays <- "55f203cd40b919bd5f94565ce5db71a3"
-task_result(lognormal_delays) #
+task_result(lognormal_delays) # "20260428-103056-2cd3cf5f"
 
 
 # Summarise ------------------------------------------------------------------
@@ -284,8 +284,8 @@ sanity <- task_create_expr(
 )
 
 task_info(sanity)
-#sanity <- "8400866f9664861cb76ed642ba629ae1"
-task_result(sanity) # "20260428-134642-107aad5d"
+#sanity <- "e0ed6b73b5c1e619a485e5964003c471"
+task_result(sanity) # "20260429-134428-6d01b20b"
 
 ## variable error diagnostics -----------------------
 
@@ -314,8 +314,8 @@ variable_sample <- task_create_expr(
 )
 
 task_info(variable_sample)
-#variable_sample <-
-task_result(variable_sample) # 
+#variable_sample <- "f78cbdb9f4c5f084dbd9c2bd7c53e4db"
+task_result(variable_sample) # "20260429-131409-c951c352"
 
 
 ## variable delay diagnostics -----------------------
@@ -345,6 +345,6 @@ variable_cv <- task_create_expr(
 )
 
 task_info(variable_cv)
-#variable_cv <-
-task_result(variable_cv) # 
+#variable_cv <- "496c5f03959c9f5aa5876f563542691c"
+task_result(variable_cv) # "20260429-130830-6ed4bdd0"
 
