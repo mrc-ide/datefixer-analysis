@@ -917,9 +917,12 @@ posterior_data <- all_draws %>%
 # Handle long tails (1% and 99% boundaries)
 posterior_data_trimmed <- posterior_data %>%
   group_by(param_label, group) %>%
-  mutate(lower_bound = quantile(post_mean, 0.01, na.rm = TRUE),
-         upper_bound = quantile(post_mean, 0.99, na.rm = TRUE)) %>%
-  filter(post_mean >= lower_bound & post_mean <= upper_bound) %>%
+  mutate(lower_bound_delay = quantile(post_mean, 0.01, na.rm = TRUE),
+         upper_bound_delay = quantile(post_mean, 0.99, na.rm = TRUE),
+         lower_bound_cv = quantile(post_cv, 0.01, na.rm = TRUE),
+         upper_bound_cv = quantile(post_cv, 0.99, na.rm = TRUE)) %>%
+  filter(post_mean >= lower_bound_delay & post_mean <= upper_bound_delay &
+           post_cv >= lower_bound_cv & post_cv <= upper_bound_cv) %>%
   ungroup()
 
 ref_lines <- true_params_chr %>%
@@ -955,7 +958,7 @@ ggsave("results/figures/posterior_cv.pdf",
        ggplot(posterior_data_trimmed,
               aes(x = post_cv, colour = scenario)) +
          geom_density() +
-         geom_vline(data = ref_lines %>% filter(cv_shared) %>% distinct(param_label, group, true_mean),
+         geom_vline(data = ref_lines %>% filter(cv_shared) %>% distinct(param_label, group, true_cv),
                     aes(xintercept = true_cv),
                     colour = "black", linetype = "dashed", linewidth = 0.8) +
          geom_vline(data = ref_lines %>% filter(!cv_shared),
