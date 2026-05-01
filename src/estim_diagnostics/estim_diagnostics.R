@@ -678,12 +678,10 @@ saveRDS(pattern_group_confusion, "results/pattern_confusion.rds")
 
 # Plots ----------------------------------------------------------------
 
-true_params_chr <- true_params %>% mutate(scenario = as.character(scenario))
-
 # Trace plot: Prob error
 trace_prob_error <- all_draws %>%
   filter(param_idx == 0 & iteration > 100) %>%
-  left_join(select(true_params_chr, scenario, param_idx, true_mean),
+  left_join(select(true_params, scenario, param_idx, true_mean),
             by = c("scenario", "param_idx")) %>%
   mutate(sim_chain = paste(simulation, chain, sep = "_")) %>%
   ggplot(aes(x = iteration, y = post_mean,
@@ -733,11 +731,8 @@ make_trace_plot <- function(data, y_var, true_var, title, y_label,
 
 trace_data_base <- all_draws %>%
   filter(param_idx > 0) %>%
-  mutate(scenario = as.character(scenario)) %>%
-  left_join(
-    select(true_params_chr, scenario, param_idx, group, true_mean),
-    by = c("scenario", "param_idx", "group")
-  )
+  left_join(select(true_params, scenario, param_idx, group, true_mean),
+            by = c("scenario", "param_idx", "group"))
 
 # if burnin is 0 then first 100 iterations removed from trace plots
 if (burnin == 0) trace_data_base <- trace_data_base %>% filter(iteration > 100)
@@ -911,8 +906,7 @@ ggsave(
 
 # Aggregate draws across simulations for cleaner visualisation
 posterior_data <- all_draws %>%
-  filter(param_label != "probability of error") %>%
-  mutate(scenario = as.character(scenario))
+  filter(param_label != "probability of error")
 
 # Handle long tails (1% and 99% boundaries)
 posterior_data_trimmed <- posterior_data %>%
@@ -925,7 +919,7 @@ posterior_data_trimmed <- posterior_data %>%
            post_cv >= lower_bound_cv & post_cv <= upper_bound_cv) %>%
   ungroup()
 
-ref_lines <- true_params_chr %>%
+ref_lines <- true_params %>%
   filter(param_idx > 0) %>%
   group_by(param_label, group) %>%
   mutate(mean_shared = n_distinct(true_mean) == 1,
@@ -979,10 +973,9 @@ ggsave("results/figures/posterior_cv.pdf",
 ggsave("results/figures/posterior_prob_error.pdf",
        all_draws %>%
          filter(param_label %in% "probability of error") %>%
-         left_join(
-           true_params_chr %>% filter(param_idx == 0) %>% select(scenario, true_mean),
-           by = "scenario"
-         ) %>%
+         left_join(true_params %>%
+                     filter(param_idx == 0) %>%
+                     select(scenario, true_mean), by = "scenario") %>%
          ggplot(aes(x = post_mean, fill = scenario, colour = scenario)) +
          geom_density(alpha = 0.3) +
          geom_vline(aes(xintercept = true_mean), linetype = "dashed", linewidth = 0.8) +
@@ -1060,7 +1053,7 @@ dir.create(problem_dir, recursive = TRUE, showWarnings = FALSE)
 problem_combos <- problem_sims %>%
   distinct(scenario, simulation)
 
-true_params_plot <- true_params_chr %>%
+true_params_plot <- true_params %>%
   select(scenario, param_label, group, true_mean) %>%
   mutate(group = forcats::fct_na_value_to_level(group, "Global"))
 
