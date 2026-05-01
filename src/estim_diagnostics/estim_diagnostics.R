@@ -696,7 +696,9 @@ trace_prob_error <- all_draws %>%
        colour = "Chain") +
   theme_minimal() +
   theme(strip.text = element_text(size = 8),
-        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+        axis.title.x = element_text(margin = margin(t = 10)),
+        axis.title.y = element_text(margin = margin(r = 10)))
 
 ggsave("results/figures/trace_error.pdf", trace_prob_error, width = 14, height = 4)
 
@@ -714,7 +716,9 @@ make_trace_plot <- function(data, y_var, true_var, title, y_label,
     labs(y = y_label, x = "Iteration", colour = "Delay", title = title) +
     theme_minimal() +
     theme(strip.text = element_text(size = 10, face = "bold"),
-          panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
+          panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+          axis.title.x = element_text(margin = margin(t = 10)),
+          axis.title.y = element_text(margin = margin(r = 10)))
   
   if (add_symbols) {
     true_points <- data %>%
@@ -772,7 +776,9 @@ make_bias_plot <- function(data, bias_avg_col, bias_sd_col, title, subtitle) {
     theme(strip.text = element_text(size = 10, face = "bold"),
           axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "none",
-          panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
+          panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+          axis.title.x = element_text(margin = margin(t = 10)),
+          axis.title.y = element_text(margin = margin(r = 10)))
 }
 
 make_error_bias_plot <- function(data, bias_col, sd_col, title, subtitle) {
@@ -787,7 +793,9 @@ make_error_bias_plot <- function(data, bias_col, sd_col, title, subtitle) {
     theme(strip.text = element_text(size = 10, face = "bold"),
           axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "none",
-          panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1))
+          panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+          axis.title.x = element_text(margin = margin(t = 10)),
+          axis.title.y = element_text(margin = margin(r = 10)))
 }
 
 # Compare to true mean delay (ground truth)
@@ -879,7 +887,9 @@ make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
           axis.text.x = element_text(angle = 45, hjust = 1),
           legend.position = "top",
           panel.border = element_rect(colour = "darkgrey", fill = NA,
-                                      linewidth = 1)) +
+                                      linewidth = 1),
+          axis.title.x = element_text(margin = margin(t = 10)),
+          axis.title.y = element_text(margin = margin(r = 10))) +
     guides(colour = "none")
 }
 
@@ -944,7 +954,9 @@ ggsave("results/figures/posterior_delay_mean.pdf",
          theme_minimal() +
          theme(strip.text = element_text(size = 7, face = "bold"),
                axis.text.x = element_text(angle = 45, hjust = 1),
-               panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)),
+               panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+               axis.title.x = element_text(margin = margin(t = 10)),
+               axis.title.y = element_text(margin = margin(r = 10))),
        width = 14, height = 10)
 
 # CV delay posteriors
@@ -965,7 +977,9 @@ ggsave("results/figures/posterior_cv.pdf",
          theme_minimal() +
          theme(strip.text  = element_text(size = 7, face = "bold"),
                axis.text.x = element_text(angle = 45, hjust = 1),
-               panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)),
+               panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+               axis.title.x = element_text(margin = margin(t = 10)),
+               axis.title.y = element_text(margin = margin(r = 10))),
        width = 14, height = 10)
 
 
@@ -989,9 +1003,9 @@ ggsave("results/figures/posterior_prob_error.pdf",
          theme_minimal() +
          theme(strip.text = element_text(size = 10, face = "bold"),
                legend.position = "none",
-               panel.border = element_rect(
-                 colour = "darkgrey", fill = NA, linewidth = 1
-                 )),
+               panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+               axis.title.x = element_text(margin = margin(t = 10)),
+               axis.title.y = element_text(margin = margin(r = 10))),
        width = 14, height = 4)
 
 
@@ -1006,9 +1020,11 @@ ggsave("results/figures/observed_patterns.pdf",
          labs(title = "Check simulated error/missingness patterns",
               x = "", y = "Percentage of Individuals (%)", fill = "Pattern") +
          theme_minimal() +
-         theme(strip.text      = element_text(size = 9, face = "bold"),
+         theme(strip.text = element_text(size = 9, face = "bold"),
                legend.position = "none",
-               panel.border    = element_rect(colour = "darkgrey", fill = NA, linewidth = 1)),
+               panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+               axis.title.x = element_text(margin = margin(t = 10)),
+               axis.title.y = element_text(margin = margin(r = 10))),
        width = 14, height = 7)
 
 # ESS plot
@@ -1028,7 +1044,9 @@ ggsave("results/figures/ess_plot.pdf",
          theme(
            axis.text.x = element_text(angle = 45, hjust = 1),
            legend.position = "none",
-           strip.text = element_text(face = "bold")
+           strip.text = element_text(face = "bold"),
+           axis.title.x = element_text(margin = margin(t = 10)),
+           axis.title.y = element_text(margin = margin(r = 10))
            ),
        width = 14, height = 7)
 
@@ -1083,7 +1101,9 @@ if (nrow(problem_combos) > 0) {
            x = "Iteration", y = "Estimate", colour = "Chain") +
       theme_bw() +
       theme(strip.text = element_text(size = 7, face = "bold"),
-            legend.position = "bottom")
+            legend.position = "bottom",
+            axis.title.x = element_text(margin = margin(t = 10)),
+            axis.title.y = element_text(margin = margin(r = 10)))
     
     clean_scen <- str_replace_all(scen, "[^[:alnum:]]", "_")
     file_name <- file.path(problem_dir, glue("trace_{clean_scen}_sim{sim}.pdf"))
@@ -1106,7 +1126,9 @@ ggsave("results/figures/rhat_vs_ess.pdf",
               y = "Rhat", x = "Bulk ESS") +
          theme_bw() +
          theme(strip.text = element_text(size = 8, face = "bold"),
-               legend.position = "none"),
+               legend.position = "none",
+               axis.title.x = element_text(margin = margin(t = 10)),
+               axis.title.y = element_text(margin = margin(r = 10))),
        width = 12, height = 8)
 
 # see if low ESS correlates with wider crIs
@@ -1121,6 +1143,8 @@ ggsave("results/figures/width_vs_ess.pdf",
               x = "ESS < 200", y = "Width of 95% CrI") +
          theme_bw() +
          theme(strip.text = element_text(size = 8, face = "bold"),
-               legend.position = "none"),
+               legend.position = "none",
+               axis.title.x = element_text(margin = margin(t = 10)),
+               axis.title.y = element_text(margin = margin(r = 10))),
        width = 12, height = 8)
 
