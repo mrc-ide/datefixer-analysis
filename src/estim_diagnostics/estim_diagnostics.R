@@ -812,7 +812,7 @@ ggsave("results/figures/bias_plot_error_gt.pdf",
          make_error_bias_plot(bias_gt_avg,  bias_gt_sd,
                               "Median Bias: Probability of Error",
                               "Compared to Ground Truth"),
-       width = 8, height = 4)
+       width = 14, height = 4)
 
 # # Compare error probability to sample truth
 # ggsave("results/figures/bias_plot_error_emp.pdf",
