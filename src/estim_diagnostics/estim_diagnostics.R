@@ -10,6 +10,9 @@ library(stringr)
 library(ggrastr)
 library(furrr)
 library(future)
+library(abind)
+library(monty)
+library(forcats)
 
 options(future.globals.maxSize = Inf)
 
@@ -78,11 +81,16 @@ orderly_artefact(files = c("results/figures/trace_error.pdf",
                            "results/pattern_confusion.rds",
                            "results/convergence_issues.rds",
                            "results/scenario_convergence.rds",
+                           "results/chain_diagnostics.rds",
+                           "results/acceptance_rates.rds",
                            "results/figures/ess_plot.pdf",
                            "results/convergence_issues_by_individual.rds",
                            "results/figures/problem_traces",
                            "results/figures/rhat_vs_ess.pdf",
-                           "results/figures/width_vs_ess.pdf"),
+                           "results/figures/width_vs_ess.pdf",
+                           "results/figures/sensitivity_specificity_events.pdf",
+                           "results/figures/sensitivity_specificity_individuals.pdf",
+                           "results/indiv_performance_summary.rds"),
                  description = "Analysis outputs")
 
 dir.create("results", showWarnings = FALSE)
@@ -225,6 +233,18 @@ extract_draws_and_summary <- function(pars_array, scenario_name, sim_idx) {
   list(summary = summary, tidy_draws = tidy)
 }
 
+# Helper function to calculate acceptance rate --------------------------------
+calc_acceptance_rate <- function(samples) {
+  initial <- samples$full_chains$initial
+  initial <- array(initial, c(dim(initial)[1], 1, dim(initial)[2]))
+  pars <- abind::abind(initial, samples$full_chains$pars, along = 2)
+  
+  n_accept <- apply(apply(pars, c(1, 3), diff) != 0, c(2, 3), sum)
+  n_steps <- dim(pars)[2] - 1
+  
+  n_accept / n_steps
+}
+
 # Create grid of simulations --------------------------------------------------
 sim_grid <- expand.grid(
   scenario_name = scenarios,
@@ -329,88 +349,120 @@ all_results <- map(scenarios, function(s) {
     obs_data <- sim_obj$observed_data
     est_error_array <- estim_obj$data$error_indicators
     post_prob_error <- apply(est_error_array, c(1, 2), mean, na.rm = TRUE)
-    est_is_error <- post_prob_error > 0.9
     
-    event_status <- tibble(
-      scenario = s,
-      simulation = sim_idx,
-      id = true_errors$id,
-      group = true_errors$group
-    ) %>%
-      mutate(
-        true_onset = case_when(
-          is.na(obs_data$onset) ~ "missing",
-          true_errors$onset == TRUE ~ "error",
-          TRUE ~ "correct"
-        ),
-        estimated_onset = ifelse(est_is_error[, 1], "error", "correct"),
-        match_onset = ifelse(true_onset == "missing", NA,
-                             true_onset == estimated_onset),
-        
-        true_hospitalisation = case_when(
-          is.na(true_errors$hospitalisation) ~ NA,
-          is.na(obs_data$hospitalisation) ~ "missing",
-          true_errors$hospitalisation == TRUE ~ "error",
-          TRUE ~ "correct"
-        ),
-        estimated_hospitalisation = case_when(
-          is.na(true_errors$hospitalisation) ~ NA,
-          est_is_error[, 2] == TRUE ~ "error",
-          TRUE ~ "correct"
-        ),
-        match_hospitalisation = ifelse(
-          true_hospitalisation == "missing" | is.na(true_hospitalisation), NA,
-          true_hospitalisation == estimated_hospitalisation
-        ),
-        
-        true_report = case_when(
-          is.na(obs_data$report) ~ "missing",
-          true_errors$report == TRUE ~ "error",
-          TRUE ~ "correct"
-        ),
-        estimated_report = ifelse(est_is_error[, 3], "error", "correct"),
-        match_report = ifelse(true_report == "missing", NA,
-                              true_report == estimated_report),
-        
-        true_death = case_when(
-          is.na(true_errors$death) ~ NA,
-          is.na(obs_data$death) ~ "missing",
-          true_errors$death == TRUE ~ "error",
-          TRUE ~ "correct"
-        ),
-        estimated_death = case_when(
-          is.na(true_errors$death) ~ NA,
-          est_is_error[, 4] == TRUE ~ "error",
-          TRUE ~ "correct"
-        ),
-        match_death = ifelse(
-          true_death == "missing" | is.na(true_death), NA,
-          true_death == estimated_death
-        ),
-        
-        true_discharge = case_when(
-          is.na(true_errors$discharge) ~ NA ,
-          is.na(obs_data$discharge) ~ "missing",
-          true_errors$discharge == TRUE ~ "error",
-          TRUE ~ "correct"
-        ),
-        estimated_discharge = case_when(
-          is.na(true_errors$discharge) ~ NA,
-          est_is_error[, 5] == TRUE ~ "error",
-          TRUE ~ "correct"
-        ),
-        match_discharge = ifelse(
-          true_discharge == "missing" | is.na(true_discharge), NA,
-          true_discharge == estimated_discharge
+      # calculate status based on a given threshold
+    get_event_status <- function(thresh) {
+      est_is_error <- post_prob_error > thresh
+      
+      tibble(
+        scenario = s,
+        simulation = sim_idx,
+        threshold = paste0(thresh * 100, "% Threshold"),
+        id = true_errors$id,
+        group = true_errors$group
+      ) %>%
+        mutate(
+          true_onset = case_when(
+            is.na(obs_data$onset) ~ "missing",
+            true_errors$onset == TRUE ~ "error",
+            TRUE ~ "correct"
+          ),
+          estimated_onset = ifelse(est_is_error[, 1], "error", "correct"),
+          match_onset = ifelse(true_onset == "missing", NA, true_onset == estimated_onset),
+          
+          true_hospitalisation = case_when(
+            is.na(true_errors$hospitalisation) ~ NA,
+            is.na(obs_data$hospitalisation) ~ "missing",
+            true_errors$hospitalisation == TRUE ~ "error",
+            TRUE ~ "correct"
+          ),
+          estimated_hospitalisation = case_when(
+            is.na(true_errors$hospitalisation) ~ NA,
+            est_is_error[, 2] == TRUE ~ "error",
+            TRUE ~ "correct"
+          ),
+          match_hospitalisation = ifelse(
+            true_hospitalisation == "missing" | is.na(true_hospitalisation), NA,
+            true_hospitalisation == estimated_hospitalisation
+          ),
+          
+          true_report = case_when(
+            is.na(obs_data$report) ~ "missing",
+            true_errors$report == TRUE ~ "error",
+            TRUE ~ "correct"
+          ),
+          estimated_report = ifelse(est_is_error[, 3], "error", "correct"),
+          match_report = ifelse(true_report == "missing", NA, true_report == estimated_report),
+          
+          true_death = case_when(
+            is.na(true_errors$death) ~ NA,
+            is.na(obs_data$death) ~ "missing",
+            true_errors$death == TRUE ~ "error",
+            TRUE ~ "correct"
+          ),
+          estimated_death = case_when(
+            is.na(true_errors$death) ~ NA,
+            est_is_error[, 4] == TRUE ~ "error",
+            TRUE ~ "correct"
+          ),
+          match_death = ifelse(
+            true_death == "missing" | is.na(true_death), NA,
+            true_death == estimated_death
+          ),
+          
+          true_discharge = case_when(
+            is.na(true_errors$discharge) ~ NA ,
+            is.na(obs_data$discharge) ~ "missing",
+            true_errors$discharge == TRUE ~ "error",
+            TRUE ~ "correct"
+          ),
+          estimated_discharge = case_when(
+            is.na(true_errors$discharge) ~ NA,
+            est_is_error[, 5] == TRUE ~ "error",
+            TRUE ~ "correct"
+          ),
+          match_discharge = ifelse(
+            true_discharge == "missing" | is.na(true_discharge), NA,
+            true_discharge == estimated_discharge
+          )
         )
-      )
+    }
+    
+    # Run for both 50% and 90% thresholds
+    event_status <- bind_rows(get_event_status(0.5), get_event_status(0.9))
+    
+    # Acceptance rate
+    acc_matrix <- calc_acceptance_rate(estim_obj)
+    acc_df <- as.data.frame(acc_matrix) %>%
+      mutate(param_idx = row_number(),
+             scenario = s,
+             simulation = sim_idx) %>%
+      pivot_longer(cols = -c(param_idx, scenario, simulation),
+                   names_to = "chain",
+                   values_to = "acceptance_rate")
+    
+    # Chain diagnostics (full and without burnin)
+      # full chains
+    samples_df_full <- posterior::as_draws_df(estim_obj$full_chains$pars)
+    diag_full <- posterior::summarise_draws(samples_df_full) %>%
+      mutate(burnin_applied = FALSE, scenario = s, simulation = sim_idx)
+    
+      # chains without burnin
+    full_chains_no_burnin <- monty::monty_samples_thin(estim_obj$full_chains, burnin = burnin)
+    samples_df_thin <- posterior::as_draws_df(full_chains_no_burnin$pars)
+    diag_thin <- posterior::summarise_draws(samples_df_thin) %>%
+      mutate(burnin_applied = TRUE, scenario = s, simulation = sim_idx)
+    
+    chain_diag_df <- bind_rows(diag_full, diag_thin)
     
     list(
       summary      = draws_result$summary,
       tidy_draws   = draws_result$tidy_draws,
       empirical    = empirical,
       observed_pat = observed_pat,
-      event_status = event_status
+      event_status = event_status,
+      acceptance   = acc_df,
+      diagnostics  = chain_diag_df
     )
   })
   rm(estim_list)
@@ -426,6 +478,8 @@ observed_patterns <- bind_rows(lapply(all_results, `[[`, "observed_pat")) %>%
   apply_scenario_labels()
 indiv_event_status <- bind_rows(lapply(all_results, `[[`, "event_status")) %>%
   apply_scenario_labels()
+acceptance_rates_df <- bind_rows(lapply(all_results, `[[`, "acceptance"))
+chain_diagnostics_df <- bind_rows(lapply(all_results, `[[`, "diagnostics"))
 
 rm(all_results)
 gc()
@@ -547,6 +601,8 @@ saveRDS(sim_summaries, "results/sim_summaries.rds")
 saveRDS(agg_summaries, "results/agg_summaries.rds")
 saveRDS(convergence_issues, "results/convergence_issues.rds")
 saveRDS(scenario_convergence, "results/scenario_convergence.rds")
+saveRDS(acceptance_rates_df, "results/acceptance_rates.rds")
+saveRDS(chain_diagnostics_df, "results/chain_diagnostics.rds")
 
 # Observed patterns summaries ------------------------------------------------
 
@@ -625,7 +681,7 @@ event_confusion <- indiv_event_status %>%
     names_pattern = "(true|estimated)_(.*)"
   ) %>%
   filter(!is.na(true), true != "missing") %>%
-  group_by(scenario, group, event, true, estimated) %>%
+  group_by(scenario, group, threshold, event, true, estimated) %>%
   summarise(n = n(), .groups = "drop") %>%
   pivot_wider(names_from = estimated, values_from = n, values_fill = 0,
               names_prefix = "pred_") %>%
@@ -640,9 +696,10 @@ event_confusion <- indiv_event_status %>%
       true == "error" ~ "Sensitivity"
     )
   ) %>%
-  select(scenario, group, event, true_status = true, pred_correct, pred_error,
-         total_actual, pct_accuracy, metric_type) %>%
-  arrange(scenario, group, event, desc(true_status))
+  select(scenario, group, threshold, event, true_status = true,
+         pred_correct, pred_error, total_actual, pct_accuracy, metric_type) %>%
+  arrange(scenario, group, threshold, event, desc(true_status))
+
 
 pattern_group_confusion <- indiv_event_status %>%
   left_join(
@@ -677,6 +734,85 @@ saveRDS(pattern_group_confusion, "results/pattern_confusion.rds")
 
 
 # Plots ----------------------------------------------------------------
+
+# Event level sensitivity and specificity
+plot_event_perf <- event_confusion %>%
+  ggplot(aes(x = event, y = pct_accuracy, fill = group)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  facet_grid(threshold ~ scenario + metric_type) + 
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(title = "Accuracy in identifying individual erroneous vs correct dates",
+       x = "Event Type",
+       y = "Accuracy (%)",
+       fill = "Group") +
+  theme_bw() +
+  theme(strip.text = element_text(size = 9, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(colour = "darkgrey",
+                                    fill = NA, linewidth = 1))
+
+# Individual level sensitivity and specificity
+indiv_performance <- indiv_event_status %>%
+  # check all events per individual
+  pivot_longer(
+    cols = c(starts_with("true_"), starts_with("estimated_")),
+    names_to = c(".value", "event"),
+    names_pattern = "(true|estimated)_(.*)"
+  ) %>%
+  # remove dates that are truly missing
+  filter(!is.na(true), true != "missing") %>%
+  group_by(scenario, simulation, threshold, id, group) %>%
+  summarise(
+    n_dates = n(),
+    true_has_error = any(true == "error"),
+    est_has_error = any(estimated == "error"),
+    .groups = "drop"
+  ) %>%
+  # individuals with at least 2 recorded dates
+  filter(n_dates >= 2) %>%
+  # sensitivity and specificity across the simulations
+  group_by(scenario, group, threshold) %>%
+  summarise(
+    # specificity: true negatives (correctly identified as having no errors)
+    total_truly_correct = sum(!true_has_error),
+    correctly_pred_correct = sum(!true_has_error & !est_has_error),
+    specificity = ifelse(total_truly_correct > 0, 
+                         (correctly_pred_correct / total_truly_correct) * 100, NA),
+    
+    # sensitivity: true positives (correctly identified as having >= 1 error)
+    total_truly_error = sum(true_has_error),
+    correctly_pred_error = sum(true_has_error & est_has_error),
+    sensitivity = ifelse(total_truly_error > 0, 
+                         (correctly_pred_error / total_truly_error) * 100, NA),
+    .groups = "drop"
+  ) %>%
+  pivot_longer(cols = c(specificity, sensitivity), 
+               names_to = "metric_type", 
+               values_to = "pct_accuracy") %>%
+  mutate(metric_type = stringr::str_to_title(metric_type))
+
+saveRDS(indiv_performance, "results/indiv_performance_summary.rds")
+
+# plot
+plot_indiv_perf <- indiv_performance %>%
+  ggplot(aes(x = group, y = pct_accuracy, fill = metric_type)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  facet_grid(threshold ~ scenario) +
+  scale_y_continuous(limits = c(0, 100)) +
+  labs(title = "Individual-level Performance",
+       subtitle = "Restricted to individuals with >= 2 recorded dates",
+       x = "Group",
+       y = "Accuracy (%)",
+       fill = "Metric") +
+  theme_bw() +
+  theme(strip.text = element_text(size = 9, face = "bold"),
+        axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(colour = "darkgrey",
+                                    fill = NA, linewidth = 1),
+        legend.position = "bottom")
+
+ggsave("results/figures/sensitivity_specificity_individuals.pdf",
+       plot_indiv_perf, width = 14, height = 10)
 
 # Trace plot: Prob error
 trace_prob_error <- all_draws %>%
@@ -1147,4 +1283,38 @@ ggsave("results/figures/width_vs_ess.pdf",
                axis.title.x = element_text(margin = margin(t = 10)),
                axis.title.y = element_text(margin = margin(r = 10))),
        width = 12, height = 8)
+
+# Compare features
+pattern_comparison <- indiv_obs_summary %>%
+  left_join(
+    problem_combos %>% mutate(is_problem = TRUE),
+    by = c("scenario", "simulation")
+  ) %>%
+  mutate(is_problem = replace_na(is_problem, FALSE)) %>%
+  group_by(is_problem, scenario, group, pattern) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(is_problem, scenario, group) %>%
+  mutate(pct = n / sum(n) * 100)
+
+plot_pattern_comparison <- ggplot(pattern_comparison, 
+                                  aes(x = reorder(pattern, n),
+                                      y = pct,
+                                      fill = is_problem)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  scale_fill_manual(values = c("FALSE" = "lightgrey", "TRUE" = "firebrick"),
+                    labels = c("Good", "Problematic")) +
+  coord_flip() +
+  facet_grid(rows = vars(group), cols = vars(scenario), scales = "free_y") +
+  labs(title = "Are specific error patterns driving non-convergence?",
+       subtitle = "Comparing pattern frequencies in problematic vs good runs",
+       x = "Simulated Pattern",
+       y = "Percentage of Individuals (%)",
+       fill = "Run") +
+  theme_minimal() +
+  theme(strip.text = element_text(size = 9, face = "bold"),
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+        legend.position = "top")
+
+ggsave("results/figures/problem_shared_patterns.pdf", plot_pattern_comparison,
+       width = 16, height = 8)
 
