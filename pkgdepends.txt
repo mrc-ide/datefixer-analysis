@@ -22,4 +22,5 @@ ggrastr
 png
 furrr
 future
+forcats
 globals
