@@ -272,6 +272,137 @@ task_result(lognormal_delays) # "20260505-114444-de3b6e3f"
 
 # Summarise ------------------------------------------------------------------
 
+baseline_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "baseline")),
+  resources = resources
+)
+
+no_error_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "no_error")),
+  resources = resources
+)
+
+no_missing_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "no_missing")),
+  resources = resources
+)
+
+no_error_no_missing_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "no_error_no_missing")),
+  resources = resources
+)
+
+low_error_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "low_error")),
+  resources = resources
+)
+
+high_error_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "high_error")),
+  resources = resources
+)
+
+low_missingness_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "low_missingness")),
+  resources = resources
+)
+
+very_small_sample_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "very_small_sample")),
+  resources = resources
+)
+
+small_sample_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "small_sample")),
+  resources = resources
+)
+
+moderate_sample_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "moderate_sample")),
+  resources = resources
+)
+
+very_large_sample_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "very_large_sample")),
+  resources = resources
+)
+
+long_delays_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "long_delays")),
+  resources = resources
+)
+
+short_delays_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "short_delays")),
+  resources = resources
+)
+
+high_variability_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "high_variability")),
+  resources = resources
+)
+
+low_variability_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "low_variability")),
+  resources = resources
+)
+
+lognormal_delays_summarise <- task_create_expr(
+  orderly::orderly_run(
+    "estim_summary",
+    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      scenario = "lognormal_delays")),
+  resources = resources
+)
+
+
+# Visualisations -------------------------------------------------------------
+
 ## sanity check diagnostics -----------------------
 
 resources <- hipercow_resources(cores = 1)
