@@ -73,6 +73,15 @@ scenario_labels <- c(
 scenario_labels <- scenario_labels[intersect(names(scenario_labels), scenario)]
 scenario_labels <- factor(scenario_labels, levels = scenario_labels)
 
+cl <- parallel::getDefaultCluster()
+
+if (!is.null(cl)) {
+  plan(cluster, workers = cl)
+} else {
+  num_cores <- max(1, parallel::detectCores() - 1)
+  plan(multisession, workers = num_cores)
+}
+
 # Read in dependencies -------------------------------------------------------
 sim_params <- readRDS("sim_params.rds")
 sim_data <- readRDS("sim_data.rds")
@@ -220,7 +229,7 @@ calc_acceptance_rate <- function(samples) {
 estim_list <- readRDS("sim_estim.rds")[[1]]
 current_sim_data <- sim_data[[scenario]]
 
-all_results <- map(seq_along(estim_list), function(sim_idx) {
+all_results <- future_map(seq_along(estim_list), function(sim_idx) {
   
   estim_obj <- estim_list[[sim_idx]]
   sim_obj <- current_sim_data[[sim_idx]]
@@ -414,7 +423,10 @@ all_results <- map(seq_along(estim_list), function(sim_idx) {
     acceptance   = acc_df,
     diagnostics  = chain_diag_df
   )
-})
+}, .options = furrr_options(
+  seed = TRUE, 
+  packages = c("dplyr", "tidyr", "posterior", "stringr", "monty", "abind") 
+))
 
 rm(estim_list)
 gc()
@@ -684,7 +696,7 @@ indiv_performance <- indiv_event_status %>%
   ) %>%
   pivot_longer(cols = c(specificity, sensitivity), 
                names_to = "metric_type", 
-               values_to = "pct_accuracy") %>%
+               values_to = "accuracy") %>%
   mutate(metric_type = stringr::str_to_title(metric_type))
 
 low_ess_threshold <- 200
