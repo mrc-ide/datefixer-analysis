@@ -751,6 +751,9 @@ plot_event_perf <- event_confusion %>%
         panel.border = element_rect(colour = "darkgrey",
                                     fill = NA, linewidth = 1))
 
+ggsave("results/figures/sensitivity_specificity_events.pdf", 
+       plot = plot_event_perf, width = 14, height = 10)
+
 # Individual level sensitivity and specificity
 indiv_performance <- indiv_event_status %>%
   # check all events per individual
