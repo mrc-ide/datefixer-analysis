@@ -157,20 +157,18 @@ ggsave("results/figures/sensitivity_specificity_events.pdf", plot_event_perf,
 
 # Individual level sensitivity and specificity
 plot_indiv_perf <- indiv_performance %>%
-  ggplot(aes(x = group, y = pct_accuracy, fill = metric_type)) +
-  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
+  ggplot(aes(x = accuracy, y = group, fill = metric_type)) +
+  geom_boxplot(position = position_dodge(width = 0.8), width = 0.7, outlier.size = 1) +
   facet_grid(threshold ~ scenario) +
-  scale_y_continuous(limits = c(0, 100)) +
+  scale_x_continuous(limits = c(0, 1)) +
   labs(title = "Individual-level Performance",
-       subtitle = "Restricted to individuals with >= 2 recorded dates",
-       x = "Group",
-       y = "Accuracy (%)",
+       subtitle = "Distribution across simulations (individuals with >= 2 recorded dates)",
+       y = "Group",
+       x = "Accuracy",
        fill = "Metric") +
   theme_bw() +
   theme(strip.text = element_text(size = 9, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
-        panel.border = element_rect(colour = "darkgrey",
-                                    fill = NA, linewidth = 1),
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
         legend.position = "bottom")
 
 ggsave("results/figures/sensitivity_specificity_individuals.pdf",
