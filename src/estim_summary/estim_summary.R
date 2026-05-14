@@ -670,16 +670,16 @@ indiv_performance <- indiv_event_status %>%
     .groups = "drop"
   ) %>%
   filter(n_dates >= 2) %>%
-  group_by(scenario, group, threshold) %>%
+  group_by(scenario, simulation, group, threshold) %>%
   summarise(
     total_truly_correct = sum(!true_has_error),
     correctly_pred_correct = sum(!true_has_error & !est_has_error),
     specificity = ifelse(total_truly_correct > 0, 
-                         (correctly_pred_correct / total_truly_correct) * 100, NA),
+                         (correctly_pred_correct / total_truly_correct), NA),
     total_truly_error = sum(true_has_error),
     correctly_pred_error = sum(true_has_error & est_has_error),
     sensitivity = ifelse(total_truly_error > 0, 
-                         (correctly_pred_error / total_truly_error) * 100, NA),
+                         (correctly_pred_error / total_truly_error), NA),
     .groups = "drop"
   ) %>%
   pivot_longer(cols = c(specificity, sensitivity), 
