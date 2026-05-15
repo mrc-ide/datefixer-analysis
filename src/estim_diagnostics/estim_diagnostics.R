@@ -22,6 +22,7 @@ for (s in scenarios) {
   remote_files <- c(
     "results/true_params.rds",
     "results/all_draws.rds",
+    "results/acceptance_rates.rds",
     "results/sim_summaries.rds",
     "results/agg_summaries.rds",
     "results/observed_patterns.rds",
@@ -46,27 +47,28 @@ for (s in scenarios) {
   )
 }
 
-orderly_artefact(files = c("results/figures/trace_error.pdf",
-                           "results/figures/trace_delays_10.pdf",
-                           "results/figures/trace_delays_all.pdf",
-                           "results/figures/bias_plot_delays_gt.pdf",
-                           "results/figures/bias_plot_error_gt.pdf",
-                           "results/figures/bias_plot_cv_gt.pdf",
-                           "results/figures/coverage_plot.pdf",
-                           "results/figures/posterior_delay_mean.pdf",
-                           "results/figures/posterior_cv.pdf",
-                           "results/figures/posterior_prob_error.pdf",
-                           "results/figures/observed_patterns.pdf",
-                           "results/figures/ess_plot.pdf",
-                           "results/figures/problem_traces",
-                           "results/figures/rhat_vs_ess.pdf",
-                           "results/figures/width_vs_ess.pdf",
-                           "results/figures/sensitivity_specificity_events.pdf",
-                           "results/figures/sensitivity_specificity_individuals.pdf",
-                           "results/figures/problem_shared_patterns.pdf"),
+orderly_artefact(files = c("figures/trace_error.pdf",
+                           "figures/trace_delays_10.pdf",
+                           "figures/trace_delays_all.pdf",
+                           "figures/bias_plot_delays_gt.pdf",
+                           "figures/bias_plot_error_gt.pdf",
+                           "figures/bias_plot_cv_gt.pdf",
+                           "figures/coverage_plot.pdf",
+                           "figures/posterior_delay_mean.pdf",
+                           "figures/posterior_cv.pdf",
+                           "figures/posterior_prob_error.pdf",
+                           "figures/observed_patterns.pdf",
+                           "figures/ess_plot.pdf",
+                           "figures/acceptance_rates.pdf",
+                           "figures/problem_traces",
+                           "figures/rhat_vs_ess.pdf",
+                           "figures/width_vs_ess.pdf",
+                           "figures/sensitivity_events.pdf",
+                           "figures/sensitivity_individuals.pdf",
+                           "figures/problem_shared_patterns.pdf"),
                  description = "Diagnostic figures")
 
-dir.create("results/figures", recursive = TRUE, showWarnings = FALSE)
+dir.create("figures", recursive = TRUE, showWarnings = FALSE)
 
 # Bind all the individual scenarios together -----------------------------------
 true_params <- map_dfr(scenarios, ~readRDS(glue("true_params_{.x}.rds")))
@@ -80,6 +82,22 @@ indiv_event_status <- map_dfr(scenarios, ~readRDS(glue("indiv_event_status_{.x}.
 event_confusion <- map_dfr(scenarios, ~readRDS(glue("event_confusion_{.x}.rds")))
 indiv_performance <- map_dfr(scenarios, ~readRDS(glue("indiv_performance_summary_{.x}.rds")))
 problem_sims <- map_dfr(scenarios, ~readRDS(glue("convergence_issues_by_individual_{.x}.rds")))
+acceptance_rates  <- map_dfr(scenarios, ~readRDS(glue("acceptance_rates_{.x}.rds")))
+
+delay_mapping <- tibble::tribble(
+  ~param_idx, ~delay_from,       ~delay_to,         ~group,
+  1,          "onset",           "report",          "community-alive",
+  2,          "onset",           "report",          "community-dead",
+  3,          "onset",           "report",          "hospitalised-alive",
+  4,          "onset",           "report",          "hospitalised-dead",
+  5,          "onset",           "death",           "community-dead",
+  6,          "onset",           "hospitalisation", "hospitalised-alive",
+  7,          "hospitalisation", "discharge",       "hospitalised-alive",
+  8,          "onset",           "hospitalisation", "hospitalised-dead",
+  9,          "hospitalisation", "death",           "hospitalised-dead"
+) %>%
+  mutate(param_label = paste(delay_from, "to", delay_to),
+         group       = as.character(group))
 
 scenario_labels <- c(
   "low_missingness" = "Low missingness (0.05)",
@@ -133,46 +151,81 @@ event_confusion <- apply_factor_levels(event_confusion)
 indiv_performance <- apply_factor_levels(indiv_performance)
 problem_sims <- apply_factor_levels(problem_sims)
 
+param_order <- c("prob_error",
+                 paste0("delay_mean", 1:9),
+                 paste0("delay_cv", 1:9))
+
+acceptance_rates <- acceptance_rates %>%
+  mutate(scenario = recode(scenario, !!!scenario_labels)) %>%
+  mutate(variable = param_order[param_idx]) %>%
+  mutate(
+    param_idx = case_when(
+      variable == "prob_error" ~ 0,
+      grepl("delay_mean|delay_cv", variable) ~
+        as.numeric(str_extract(variable, "\\d+")),
+      TRUE ~ NA
+    ),
+    type  = ifelse(grepl("^delay_cv", variable), "cv", "mean"),
+    chain = as.integer(gsub("\\D", "", chain))
+  ) %>%
+  select(-variable) %>%
+  pivot_wider(names_from = type, values_from = acceptance_rate) %>%
+  rename(acc_mean = mean, acc_cv = cv) %>%
+  left_join(delay_mapping, by = "param_idx") %>%
+  mutate(param_label = ifelse(param_idx == 0, "probability of error",
+                              as.character(param_label))) %>%
+  apply_factor_levels()
 
 # Plots ----------------------------------------------------------------------
 
-# Event level sensitivity and specificity
-plot_event_perf <- event_confusion %>%
-  ggplot(aes(x = event, y = pct_accuracy, fill = group)) +
-  geom_col(position = position_dodge(width = 0.8), width = 0.7) +
-  facet_grid(threshold ~ scenario + metric_type) + 
-  scale_y_continuous(limits = c(0, 100)) +
-  labs(title = "Accuracy in identifying individual erroneous vs correct dates",
-       x = "Event Type",
-       y = "Accuracy (%)",
-       fill = "Group") +
+# Event level sensitivity
+plot_event_sensitivity <- event_confusion %>%
+  filter(metric_type == "Sensitivity") %>%
+  mutate(event = factor(event, levels = c("onset", "report",
+                                          "hospitalisation",
+                                          "discharge", "death"))) %>%
+  ggplot(aes(x = event, y = group, fill = pct_accuracy)) +
+  geom_tile(colour = "white", linewidth = 0.5) +
+  geom_text(aes(label = sprintf("%.0f", pct_accuracy)),
+            size = 2.8, colour = "grey20") +
+  facet_grid(threshold ~ scenario) +
+  scale_fill_gradient2(midpoint = 50, low = "firebrick",
+                       mid = "white", high = "steelblue",
+                       limits = c(0, 100), na.value = "grey95") +
+  scale_y_discrete(drop = FALSE, limits = rev) +
+  labs(title    = "Sensitivity in identifying erroneous dates",
+       subtitle = "Percentage of true errors correctly flagged",
+       x = "Event", y = "Group", fill = "Sensitivity (%)") +
   theme_bw() +
-  theme(strip.text = element_text(size = 9, face = "bold"),
-        axis.text.x = element_text(angle = 45, hjust = 1),
+  theme(strip.text   = element_text(size = 9, face = "bold"),
+        axis.text.x  = element_text(angle = 45, hjust = 1),
         panel.border = element_rect(colour = "darkgrey",
-                                    fill = NA, linewidth = 1))
+                                    fill = NA, linewidth = 1),
+        panel.grid   = element_blank())
 
-ggsave("results/figures/sensitivity_specificity_events.pdf", plot_event_perf,
-       width = 14, height = 10)
+ggsave("figures/sensitivity_events.pdf",
+       plot_event_sensitivity, width = 14, height = 6)
 
-# Individual level sensitivity and specificity
-plot_indiv_perf <- indiv_performance %>%
-  ggplot(aes(x = accuracy, y = group, fill = metric_type)) +
-  geom_boxplot(position = position_dodge(width = 0.8), width = 0.7, outlier.size = 1) +
+# Individual level sensitivity
+plot_indiv_sensitivity <- indiv_performance %>%
+  filter(metric_type == "Sensitivity") %>%
+  filter(!is.na(accuracy)) %>%
+  ggplot(aes(x = accuracy, y = group)) +
+  geom_boxplot(fill = "dodgerblue", alpha = 0.5, width = 0.7, outlier.size = 1) +
   facet_grid(threshold ~ scenario) +
   scale_x_continuous(limits = c(0, 1)) +
-  labs(title = "Individual-level Performance",
+  scale_y_discrete(drop = FALSE, limits = rev) +
+  labs(title = "Individual-level Sensitivity",
        subtitle = "Distribution across simulations (individuals with >= 2 recorded dates)",
        y = "Group",
-       x = "Accuracy",
-       fill = "Metric") +
+       x = "Sensitivity") +
   theme_bw() +
   theme(strip.text = element_text(size = 9, face = "bold"),
         panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
-        legend.position = "bottom")
+        legend.position = "none")
 
-ggsave("results/figures/sensitivity_specificity_individuals.pdf",
-       plot_indiv_perf, width = 14, height = 10)
+ggsave("figures/sensitivity_individuals.pdf",
+       plot_indiv_sensitivity, width = 14, height = 8)
 
 # Trace plot: Prob error
 trace_prob_error <- all_draws %>%
@@ -196,7 +249,7 @@ trace_prob_error <- all_draws %>%
         axis.title.x = element_text(margin = margin(t = 10)),
         axis.title.y = element_text(margin = margin(r = 10)))
 
-ggsave("results/figures/trace_error.pdf", trace_prob_error, width = 14, height = 4)
+ggsave("figures/trace_error.pdf", trace_prob_error, width = 14, height = 4)
 
 # Trace plot: Delays
 make_trace_plot <- function(data, y_var, true_var, title, y_label,
@@ -250,8 +303,8 @@ trace_all <- make_trace_plot(
   add_symbols = TRUE
 )
 
-ggsave("results/figures/trace_delays_10.pdf", trace_10, width = 14, height = 10)
-ggsave("results/figures/trace_delays_all.pdf", trace_all, width = 14, height = 10)
+ggsave("figures/trace_delays_10.pdf", trace_10, width = 14, height = 10)
+ggsave("figures/trace_delays_all.pdf", trace_all, width = 14, height = 10)
 
 # Bias plots
 make_bias_plot <- function(data, bias_avg_col, bias_sd_col, title, subtitle) {
@@ -293,21 +346,21 @@ make_error_bias_plot <- function(data, bias_col, sd_col, title, subtitle) {
           axis.title.y = element_text(margin = margin(r = 10)))
 }
 
-ggsave("results/figures/bias_plot_delays_gt.pdf",
+ggsave("figures/bias_plot_delays_gt.pdf",
        agg_summaries %>% filter(!param_label %in% "probability of error") %>%
          make_bias_plot(bias_gt_avg,  bias_gt_sd,
                         "Median Bias of Delay Parameters (+/- SD)",
                         "Compared to Ground Truth"),
        width = 10, height = 8)
 
-ggsave("results/figures/bias_plot_error_gt.pdf",
+ggsave("figures/bias_plot_error_gt.pdf",
        agg_summaries %>% filter(param_label %in% "probability of error") %>%
          make_error_bias_plot(bias_gt_avg,  bias_gt_sd,
                               "Median Bias: Probability of Error",
                               "Compared to Ground Truth"),
        width = 14, height = 4)
 
-ggsave("results/figures/bias_plot_cv_gt.pdf",
+ggsave("figures/bias_plot_cv_gt.pdf",
        agg_summaries %>% filter(!param_label %in% "probability of error") %>%
          make_bias_plot(cv_bias_gt_avg,  cv_bias_gt_sd,
                         "Median Bias of CV Parameters (+/- SD)",
@@ -363,7 +416,7 @@ make_coverage_plot <- function(data, cov95_col, cov50_col, subtitle) {
 }
 
 ggsave(
-  "results/figures/coverage_plot.pdf",
+  "figures/coverage_plot.pdf",
   agg_summaries %>% filter(!param_label %in% "probability of error") %>%
     make_coverage_plot(
       cov95_gt_pct, cov50_gt_pct,
@@ -392,7 +445,7 @@ ref_lines <- true_params %>%
          cv_shared = n_distinct(true_cv) == 1) %>%
   ungroup()
 
-ggsave("results/figures/posterior_delay_mean.pdf",
+ggsave("figures/posterior_delay_mean.pdf",
        ggplot(posterior_data_trimmed,
               aes(x = post_mean, colour = scenario)) +
          geom_density() +
@@ -414,7 +467,7 @@ ggsave("results/figures/posterior_delay_mean.pdf",
                axis.title.y = element_text(margin = margin(r = 10))),
        width = 14, height = 10)
 
-ggsave("results/figures/posterior_cv.pdf",
+ggsave("figures/posterior_cv.pdf",
        ggplot(posterior_data_trimmed,
               aes(x = post_cv, colour = scenario)) +
          geom_density() +
@@ -436,7 +489,7 @@ ggsave("results/figures/posterior_cv.pdf",
                axis.title.y = element_text(margin = margin(r = 10))),
        width = 14, height = 10)
 
-ggsave("results/figures/posterior_prob_error.pdf",
+ggsave("figures/posterior_prob_error.pdf",
        all_draws %>%
          filter(param_label %in% "probability of error") %>%
          left_join(true_params %>%
@@ -461,7 +514,7 @@ ggsave("results/figures/posterior_prob_error.pdf",
        width = 14, height = 4)
 
 # Observed patterns plot
-ggsave("results/figures/observed_patterns.pdf",
+ggsave("figures/observed_patterns.pdf",
        obs_pattern_summary %>%
          ggplot(aes(x = reorder(pattern, n_individuals), y = pct, fill = pattern)) +
          geom_col() +
@@ -479,7 +532,7 @@ ggsave("results/figures/observed_patterns.pdf",
        width = 14, height = 7)
 
 # ESS plot
-ggsave("results/figures/ess_plot.pdf",
+ggsave("figures/ess_plot.pdf",
        sim_summaries %>%
          ggplot(aes(x = scenario, y = ess_bulk_est, fill = scenario)) +
          geom_violin(alpha = 0.3, scale = "width") +
@@ -488,7 +541,7 @@ ggsave("results/figures/ess_plot.pdf",
          facet_wrap(~param_label, scales = "free_y") +
          labs(
            title = "Distribution of effective sample size across simulations",
-           subtitle = "Red line = threshold of 200",
+           subtitle = "Black line = threshold of 200",
            y = "ESS",
            x = "") +
          theme_bw() +
@@ -501,8 +554,37 @@ ggsave("results/figures/ess_plot.pdf",
          ),
        width = 14, height = 7)
 
+# Acceptance
+acceptance_long <- acceptance_rates %>%
+  pivot_longer(c(acc_mean, acc_cv),
+               names_to  = "type",
+               values_to = "acceptance_rate",
+               names_prefix = "acc_") %>%
+  filter(!is.na(acceptance_rate)) %>%
+  mutate(type = factor(type, levels = c("mean", "cv"), labels = c("Mean", "CV")))
+
+plot_acceptance <- acceptance_long %>%
+  filter(param_label != "probability of error") %>% 
+  ggplot(aes(x = acceptance_rate, y = param_label, fill = group)) +
+  geom_boxplot(position = position_dodge(width = 0.8), width = 0.7, outlier.size = 1) +
+  geom_vline(xintercept = 0.234, linetype = "dashed", colour = "black", linewidth = 0.8) +
+  facet_grid(type ~ scenario) +
+  scale_x_continuous(labels = scales::percent) +
+  scale_y_discrete(limits = rev) +
+  labs(title = "MCMC Acceptance Rates",
+       subtitle = "Distribution across simulations. Dashed line = 23.4%",
+       x = "Acceptance Rate",
+       y = "Parameter",
+       fill = "Group") +
+  theme_bw() +
+  theme(strip.text = element_text(size = 9, face = "bold"),
+        panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
+        legend.position = "bottom")
+
+ggsave("figures/acceptance_rates.pdf", plot_acceptance, width = 16, height = 10)
+
 # Problem traces
-dir.create("results/figures/problem_traces", recursive = TRUE, showWarnings = FALSE)
+dir.create("figures/problem_traces", recursive = TRUE, showWarnings = FALSE)
 
 problem_combos <- problem_sims %>%
   distinct(scenario, simulation)
@@ -541,14 +623,14 @@ if (nrow(problem_combos) > 0) {
             axis.title.y = element_text(margin = margin(r = 10)))
     
     clean_scen <- str_replace_all(scen, "[^[:alnum:]]", "_")
-    file_name <- file.path("results/figures/problem_traces", glue("trace_{clean_scen}_sim{sim}.pdf"))
+    file_name <- file.path("figures/problem_traces", glue("trace_{clean_scen}_sim{sim}.pdf"))
     
     ggsave(file_name, plot = p, width = 16, height = 10)
   }
 }
 
 # see if low ess correlates with poor rhat
-ggsave("results/figures/rhat_vs_ess.pdf",
+ggsave("figures/rhat_vs_ess.pdf",
        sim_summaries %>%
          ggplot(aes(x = ess_bulk_est, y = rhat_est)) +
          geom_point(aes(colour = scenario), alpha = 0.4) +
@@ -568,7 +650,7 @@ ggsave("results/figures/rhat_vs_ess.pdf",
 
 # see if low ESS correlates with wider crIs
 low_ess_threshold <- 200
-ggsave("results/figures/width_vs_ess.pdf",
+ggsave("figures/width_vs_ess.pdf",
        sim_summaries %>%
          mutate(is_low_ess = ess_bulk_est < low_ess_threshold) %>%
          ggplot(aes(x = is_low_ess, y = width95, colour = is_low_ess)) +
@@ -615,5 +697,5 @@ plot_pattern_comparison <- ggplot(pattern_comparison,
         panel.border = element_rect(colour = "darkgrey", fill = NA, linewidth = 1),
         legend.position = "top")
 
-ggsave("results/figures/problem_shared_patterns.pdf", plot_pattern_comparison,
+ggsave("figures/problem_shared_patterns.pdf", plot_pattern_comparison,
        width = 16, height = 8)
