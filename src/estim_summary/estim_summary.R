@@ -429,7 +429,6 @@ all_results <- future_map(seq_along(estim_list), function(sim_idx) {
 ))
 
 rm(estim_list)
-gc()
 
 # Extract outputs from the list
 sim_summaries_raw <- bind_rows(lapply(all_results, `[[`, "summary"))
@@ -444,7 +443,6 @@ acceptance_rates_df <- bind_rows(lapply(all_results, `[[`, "acceptance"))
 chain_diagnostics_df <- bind_rows(lapply(all_results, `[[`, "diagnostics"))
 
 rm(all_results)
-gc()
 
 # Post-process ----------------------------------------------------------------
 sim_summaries_mean <- sim_summaries_raw %>%
@@ -624,15 +622,18 @@ event_confusion <- indiv_event_status %>%
     names_pattern = "(true|estimated)_(.*)"
   ) %>%
   filter(!is.na(true), true != "missing") %>%
-  group_by(scenario, group, threshold, event, true, estimated) %>%
-  summarise(n = n(), .groups = "drop") %>%
-  pivot_wider(names_from = estimated, values_from = n, values_fill = 0,
-              names_prefix = "pred_") %>%
+  group_by(scenario, group, threshold, event, true) %>%
+  summarise(
+    pred_correct = sum(estimated == "correct", na.rm = TRUE),
+    pred_error = sum(estimated == "error", na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
   mutate(
     total_actual = pred_correct + pred_error,
     pct_accuracy = case_when(
-      true == "correct" ~ (pred_correct / total_actual) * 100,
-      true == "error" ~ (pred_error / total_actual) * 100
+      true == "correct" & total_actual > 0 ~ (pred_correct / total_actual) * 100,
+      true == "error" & total_actual > 0 ~ (pred_error / total_actual) * 100,
+      TRUE ~ NA_real_
     ),
     metric_type = case_when(
       true == "correct" ~ "Specificity",
@@ -655,15 +656,18 @@ pattern_group_confusion <- indiv_event_status %>%
     names_pattern = "(true|estimated)_(.*)"
   ) %>%
   filter(!is.na(true), true != "missing") %>%
-  group_by(scenario, group, pattern, true, estimated) %>%
-  summarise(count = n(), .groups = "drop") %>%
-  pivot_wider(names_from = estimated, values_from = count, values_fill = 0,
-              names_prefix = "pred_") %>%
+  group_by(scenario, group, pattern, true) %>%
+  summarise(
+    pred_correct = sum(estimated == "correct", na.rm = TRUE),
+    pred_error   = sum(estimated == "error", na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
   mutate(
     total_actual = pred_correct + pred_error,
     pct_accuracy = case_when(
-      true == "correct" ~ (pred_correct / total_actual) * 100,
-      true == "error" ~ (pred_error / total_actual) * 100
+      true == "correct" & total_actual > 0 ~ (pred_correct / total_actual) * 100,
+      true == "error"   & total_actual > 0 ~ (pred_error / total_actual) * 100,
+      TRUE ~ NA
     )
   )
 
@@ -726,3 +730,5 @@ saveRDS(event_confusion, "results/event_confusion.rds")
 saveRDS(pattern_group_confusion, "results/pattern_confusion.rds")
 saveRDS(indiv_performance, "results/indiv_performance_summary.rds")
 saveRDS(problem_sims, "results/convergence_issues_by_individual.rds")
+
+if (is.null(cl)) plan(sequential)
