@@ -272,6 +272,9 @@ task_result(lognormal_delays) # "20260505-114444-de3b6e3f"
 
 # Summarise ------------------------------------------------------------------
 
+resources <- hipercow_resources(cores = 32)
+
+# "20260515-085054-08ec515f"
 baseline_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -280,6 +283,7 @@ baseline_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085109-4080c97a"
 no_error_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -288,6 +292,7 @@ no_error_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085159-c93c0cea"
 no_missing_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -296,6 +301,7 @@ no_missing_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085210-69637a94"
 no_error_no_missing_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -304,6 +310,7 @@ no_error_no_missing_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085224-461ef692"
 low_error_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -312,6 +319,7 @@ low_error_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085458-2e4dd981"
 high_error_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -320,6 +328,7 @@ high_error_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085244-6a3a867f"
 low_missingness_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -328,6 +337,7 @@ low_missingness_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085253-49d1730b"
 very_small_sample_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -336,6 +346,7 @@ very_small_sample_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085547-4ed20fb5"
 small_sample_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -344,6 +355,7 @@ small_sample_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085608-35c36139"
 moderate_sample_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -352,6 +364,7 @@ moderate_sample_summarise <- task_create_expr(
   resources = resources
 )
 
+# new: "62c91ec1475779b210fbb080a5f91823"
 very_large_sample_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -360,6 +373,7 @@ very_large_sample_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085332-027e37c7"
 long_delays_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -368,6 +382,7 @@ long_delays_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085340-37bd2879"
 short_delays_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -376,6 +391,7 @@ short_delays_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085350-89089090"
 high_variability_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -384,6 +400,7 @@ high_variability_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085359-9d10b3b1"
 low_variability_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -392,6 +409,7 @@ low_variability_summarise <- task_create_expr(
   resources = resources
 )
 
+# "20260515-085414-4e5cd65a"
 lognormal_delays_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
@@ -415,8 +433,8 @@ sanity <- task_create_expr(
 )
 
 task_info(sanity)
-#sanity <- "6ebb708bb19eb79d37f689b0d17ee37c"
-task_result(sanity) # old: "20260507-110629-3e3e1d53"
+#sanity <- "bbc3194aa9fec80dc9af116098c277ac"
+task_result(sanity) # "20260515-152045-3eb1bcae"
 
 ## variable error diagnostics -----------------------
 
@@ -430,8 +448,8 @@ variable_error <- task_create_expr(
 )
 
 task_info(variable_error)
-#variable_error <- "3c923e0a2d7a6929a0078e01c5c19284"
-task_result(variable_error) # old: "20260507-110637-a01f6ee8"
+#variable_error <- "34373e21f34b21d0a347f2a7246375c0"
+task_result(variable_error) # "20260515-153212-f1f3f5ad"
 
 ## variable group sample size -----------------------
 
@@ -440,13 +458,13 @@ variable_sample <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = "baseline,very_small_sample,small_sample,moderate_sample,very_large_sample")),
+                      scenarios = "baseline,very_small_sample,small_sample,moderate_sample")),#,very_large_sample")),
   resources = resources
 )
 
 task_info(variable_sample)
-#variable_sample <- "08730a492148457ffee475c649b83371"
-task_result(variable_sample) # 
+#variable_sample <- "96e7b8def165b0da3df35cd3b6e4294a"
+task_result(variable_sample) # "20260515-153222-7edbe14e"
 
 
 ## variable delay diagnostics -----------------------
@@ -461,8 +479,8 @@ variable_delays <- task_create_expr(
 )
 
 task_info(variable_delays)
-#variable_delays <- "340598b5f6ccf7594eb5a4ada549a04d"
-task_result(variable_delays) # old: "20260507-110721-3f4aaf03"
+#variable_delays <- "506e022e2717252260c65bcc09b034e5"
+task_result(variable_delays) # "20260515-153237-a94657b1"
 
 ## variable cv -----------------------
 
@@ -476,8 +494,8 @@ variable_cv <- task_create_expr(
 )
 
 task_info(variable_cv)
-#variable_cv <- "795d34dd9bc583a9b4ccef56f71ecc06"
-task_result(variable_cv) # old: "20260507-110730-24768ca3"
+#variable_cv <- "24d32af0b3b72c6595bc1688742be87e"
+task_result(variable_cv) # "20260515-153245-6c5b2e6d"
 
 
 ## variable delay type -----------------------
@@ -492,5 +510,5 @@ variable_distr <- task_create_expr(
 )
 
 task_info(variable_distr)
-#variable_distr <- "e529b3d40fc3fee9abbf1c2017ce3e00"
-task_result(variable_distr) # old: "20260507-110740-a19e1bae"
+#variable_distr <- "4791f3c209ed0f14cd7f927f47ad8406"
+task_result(variable_distr) # "20260515-153252-8222aa59"
