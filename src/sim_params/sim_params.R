@@ -74,7 +74,7 @@ scenarios <- bind_rows(
   ),
   baseline %>% mutate(
     scenario_id = "very_large_sample",
-    group_size = 500
+    group_size = 250
   ),
   baseline %>% mutate(
     scenario_id = "long_delays",
