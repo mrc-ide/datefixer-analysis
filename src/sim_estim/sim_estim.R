@@ -43,7 +43,9 @@ control <- mcmc_control(n_steps = iterations,
                         thinning_factor = thin,
                         n_chains = 4,
                         earliest_possible_date = "2014-01-01",
-                        latest_possible_date = "2015-01-01")
+                        latest_possible_date = "2015-01-01",
+                        mean_sdlog = 0.5,
+                        cv_sdlog = 0.5)
 sampler <- datefixer_sampler(control)
 hyperparameters <- datefixer_hyperparameters()
 
