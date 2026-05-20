@@ -2,7 +2,9 @@ library(orderly)
 library(datefixer)
 library(parallel)
 
-pars <- orderly_parameters(scenario = NULL, n_steps = NULL, burnin = NULL, thinning_factor = NULL)
+pars <- orderly_parameters(scenario = NULL, n_steps = NULL, burnin = NULL,
+                           thinning_factor = NULL, mean_sdlog = NULL,
+                           cv_sdlog = NULL)
 
 orderly_dependency("sim_params", "latest", "sim_params.rds")
 orderly_dependency("sim_data", "latest", "sim_data.rds")
@@ -14,6 +16,8 @@ selected_scenario <- scenario
 iterations <- n_steps
 burn <- burnin
 thin <- thinning_factor
+mean_sdlog <- mean_sdlog
+cv_sdlog <- cv_sdlog
 
 # Read in dependencies --------------------------------------------------------
 
@@ -44,8 +48,8 @@ control <- mcmc_control(n_steps = iterations,
                         n_chains = 4,
                         earliest_possible_date = "2014-01-01",
                         latest_possible_date = "2015-01-01",
-                        mean_sdlog = 0.5,
-                        cv_sdlog = 0.5)
+                        mean_sdlog = mean_sdlog,
+                        cv_sdlog = cv_sdlog)
 sampler <- datefixer_sampler(control)
 hyperparameters <- datefixer_hyperparameters()
 
