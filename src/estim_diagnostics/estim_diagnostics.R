@@ -206,12 +206,27 @@ plot_event_sensitivity <- event_confusion %>%
 ggsave("figures/sensitivity_events.pdf",
        plot_event_sensitivity, width = 14, height = 6)
 
+# Filter out scenarios that have no true errors simulated
+plot_data <- indiv_performance %>%
+  filter(!scenario %in% c("Missing dates only (0.2)", "No errors or missing dates"))
+
+# Calculate the averages for sensitivity and specificity per threshold and scenario
+avg_metrics <- plot_data %>%
+  filter(!is.na(accuracy), metric_type %in% c("Sensitivity", "Specificity")) %>%
+  group_by(scenario, threshold, metric_type) %>%
+  summarise(mean_val = mean(accuracy, na.rm = TRUE), .groups = "drop") %>%
+  pivot_wider(names_from = metric_type, values_from = mean_val) %>%
+  mutate(label_text = sprintf("Avg Sens: %.2f\nAvg Spec: %.2f", Sensitivity, Specificity))
+
 # Individual level sensitivity
-plot_indiv_sensitivity <- indiv_performance %>%
+plot_indiv_sensitivity <- plot_data %>%
   filter(metric_type == "Sensitivity") %>%
   filter(!is.na(accuracy)) %>%
   ggplot(aes(x = accuracy, y = group)) +
   geom_boxplot(fill = "dodgerblue", alpha = 0.5, width = 0.7, outlier.size = 1) +
+  geom_text(data = avg_metrics, aes(x = -Inf, y = Inf, label = label_text), 
+            inherit.aes = FALSE, hjust = -0.1, vjust = 1.2, size = 3,
+            fontface = "bold", colour = "navy") +
   facet_grid(threshold ~ scenario) +
   scale_x_continuous(limits = c(0, 1)) +
   scale_y_discrete(drop = FALSE, limits = rev) +
