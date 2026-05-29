@@ -1,6 +1,6 @@
 #setwd("/Volumes/outbreak_analysis/rnash/datefixer-analysis")
-#pak::pkg_install("mrc-ide/datefixer@generate_linelist")
-#pak::pkg_install("mrc-ide/datefixer")
+#pak::pkg_install("mrc-ide/chronofix@generate_linelist")
+#pak::pkg_install("mrc-ide/chronofix")
 #pak::pkg_install("mrc-ide/monty@mrc-6769")
 
 library(orderly)
