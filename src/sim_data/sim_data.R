@@ -3,7 +3,7 @@
 # TO DO: set up lognormal_delays, weibull_delays and other error model scenarios
 
 library(orderly)
-library(datefixer)
+library(chronofix)
 library(parallel)
 
 ## Number of data sets to simulate for each scenario
@@ -21,10 +21,10 @@ simulate_scenario <- function(sim_params, nsims) {
   parallel::clusterExport(cl, 
                           varlist = c("sim_params"),
                           envir = environment())
-  parallel::clusterEvalQ(cl, library(datefixer))
+  parallel::clusterEvalQ(cl, library(chronofix))
   
   parallel::parLapply(cl, seq_len(nsims), function(i) {
-    simulate_data(
+    chronofix_simulate_data(
       sim_params$n_per_group,
       sim_params$group_names,
       sim_params$delay_info,

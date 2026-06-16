@@ -51,11 +51,9 @@ task_result(sim100) # "20260518-141548-ad43a0aa"
 baseline <- task_create_expr(
   orderly::orderly_run("sim_estim",
                        parameters = list(scenario = "baseline",
-                                         n_steps = 20000,
-                                         burnin = 10000,
+                                         n_steps = 10000,
+                                         burnin = 5000,
                                          thinning_factor = 10,
-                                         mean_sdlog = 0.1,
-                                         cv_sdlog = 0.3,
                                          cascade_sampling = TRUE)),
   parallel = hipercow_parallel("parallel"),
   resources = resources

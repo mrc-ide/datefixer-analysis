@@ -11,15 +11,12 @@ library(forcats)
 
 pars <- orderly_parameters(n_steps = NULL, burnin = NULL,
                            thinning_factor = NULL, scenarios = NULL,
-                           mean_sdlog = NULL, cv_sdlog = NULL,
-                           cascade_sampling = NULL)
+                           cascade_sampling = TRUE)
 
 n_steps <- n_steps
 burnin <- burnin
 thinning_factor <- thinning_factor
 scenarios <- strsplit(scenarios, ",")[[1]]
-mean_sdlog <- mean_sdlog
-cv_sdlog <- cv_sdlog
 cascade_sampling <- cascade_sampling
 
 # Loop through scenarios and fetch the individual summaries
@@ -48,8 +45,6 @@ for (s in scenarios) {
     parameter:n_steps == environment:n_steps &&
     parameter:burnin == environment:burnin &&
     parameter:thinning_factor == environment:thinning_factor &&
-    parameter:mean_sdlog == environment:mean_sdlog &&
-    parameter:cv_sdlog == environment:cv_sdlog &&
     parameter:cascade_sampling == environment:cascade_sampling)",
     deps_mapping
   )

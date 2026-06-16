@@ -5,7 +5,7 @@
 orderly_artefact(description = "Simulation parameters for all scenarios",
                  files = "sim_params.rds")
 
-library(datefixer)
+library(chronofix)
 library(tibble)
 library(dplyr)
 library(purrr)
