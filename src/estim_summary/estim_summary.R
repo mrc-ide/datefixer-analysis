@@ -16,6 +16,8 @@ pars <- orderly_parameters(scenario = NULL, n_steps = NULL, burnin = NULL,
                            thinning_factor = NULL, mean_sdlog = NULL,
                            cv_sdlog = NULL, cascade_sampling = NULL)
 
+nsims <- 100
+
 scenario <- scenario
 n_steps <- n_steps
 burnin <- burnin
@@ -25,17 +27,21 @@ cv_sdlog <- cv_sdlog
 cascade_sampling <- cascade_sampling
 
 orderly_dependency("sim_params", "latest", "sim_params.rds")
-orderly_dependency("sim_data", "latest", "sim_data.rds")
 
-orderly_dependency("sim_estim",
-                   "latest(parameter:scenario == environment:scenario && 
-                   parameter:n_steps == environment:n_steps &&
-                   parameter:burnin == environment:burnin &&
-                   parameter:thinning_factor == environment:thinning_factor &&
-                   parameter:mean_sdlog == environment:mean_sdlog &&
-                   parameter:cv_sdlog == environment:cv_sdlog &&
-                   parameter:cascade_sampling == environment:cascade_sampling)",
-                   c("sim_estim.rds" = "sim_estim.rds"))
+
+for (i in seq_len(nsims)) {
+  orderly_dependency("sim_estim",
+                     quote(latest(parameter:scenario == this:scenario && 
+                                    parameter:dataset == environment:i &&
+                                    parameter:n_steps == this:n_steps &&
+                                    parameter:burnin == this:burnin &&
+                                    parameter:thinning_factor == this:thinning_factor &&
+                                    parameter:mean_sdlog == this:mean_sdlog &&
+                                    parameter:cv_sdlog == this:cv_sdlog &&
+                                    parameter:cascade_sampling == this:cascade_sampling)),
+                     c("inputs/data/sim_data_${i}.rds" = "sim_data.rds",
+                       "inputs/samples/sim_estim_${i}.rds" = "sim_estim.rds"))
+}
 
 orderly_artefact(files = c("results/true_params.rds",
                            "results/all_draws.rds",
@@ -91,7 +97,6 @@ if (!is.null(cl)) {
 
 # Read in dependencies -------------------------------------------------------
 sim_params <- readRDS("sim_params.rds")
-sim_data <- readRDS("sim_data.rds")
 
 # Delay mapping --------------------------------------------------------------
 delay_mapping <- tribble(
@@ -233,13 +238,17 @@ calc_acceptance_rate <- function(samples) {
 }
 
 # Process single Scenario ----------------------------------------------------
-estim_list <- readRDS("sim_estim.rds")[[1]]
-current_sim_data <- sim_data[[scenario]]
+estim_list <- 
+  lapply(seq_len(nsims), 
+         function (i) readRDS(paste0("inputs/samples/sim_estim_", i, ".rds")))
+sim_data <- 
+  lapply(seq_len(nsims), 
+         function (i) readRDS(paste0("inputs/data/sim_data_", i, ".rds")))
 
 all_results <- future_map(seq_along(estim_list), function(sim_idx) {
   
   estim_obj <- estim_list[[sim_idx]]
-  sim_obj <- current_sim_data[[sim_idx]]
+  sim_obj <- sim_data[[sim_idx]]
   
   draws_result <- extract_draws_and_summary(estim_obj$pars, scenario, sim_idx)
   

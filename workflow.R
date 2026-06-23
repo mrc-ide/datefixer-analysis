@@ -48,84 +48,84 @@ task_result(sim100) # "20260518-141548-ad43a0aa"
 # "low_variability" x
 # "lognormal_delays" x
 
-baseline <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "baseline",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10,
-                                         mean_sdlog = 0.1,
-                                         cv_sdlog = 0.3,
-                                         cascade_sampling = TRUE)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+baseline <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "baseline",
+                                           dataset = dataset,
+                                           n_steps = 20000,
+                                           burnin = 10000,
+                                           thinning_factor = 10,
+                                           mean_sdlog = 0.1,
+                                           cv_sdlog = 0.3,
+                                           cascade_sampling = TRUE)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(baseline) # baseline <- "806c9a12e707dd3da85898e2aa756bd1"
-task_result(baseline)
+hipercow_bundle_result(baseline)
 # generate linelist: 
 # mean sdlog 0.1, cv sdlog 0.3: "20260520-190312-00afea49"
 # mean sdlog 0.2, cv sdlog 0.3: "20260520-082901-7d875780"
 # sdlog 0.5: "20260519-155144-42cba06b"
 # new branch: "20260505-114129-4551912f"
 
-no_missing <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "no_missing",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10,
-                                         mean_sdlog = 0.1,
-                                         cv_sdlog = 0.3,
-                                         cascade_sampling = TRUE)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+no_missing <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "no_missing",
+                                           dataset = dataset,
+                                           n_steps = 20000,
+                                           burnin = 10000,
+                                           thinning_factor = 10,
+                                           mean_sdlog = 0.1,
+                                           cv_sdlog = 0.3,
+                                           cascade_sampling = TRUE)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(no_missing) # no_missing <- "4036b170678e7a61fcd6934694dfc01e"
-task_result(no_missing)
+hipercow_bundle_result(no_missing)
 # generate linelist: 
 # mean sdlog 0.1, cv sdlog 0.3: "20260520-190320-d8bbe36f"
 # mean sdlog 0.2, cv sdlog 0.3: "20260520-083231-4a34e4db"
 # sdlog 0.5: "20260519-155421-68f7db09"
 # new branch: "20260505-114202-082f82d3"
 
-no_error <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "no_error",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10,
-                                         mean_sdlog = 0.1,
-                                         cv_sdlog = 0.3,
-                                         cascade_sampling = TRUE)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+no_error <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "no_error",
+                                           dataset = dataset,
+                                           n_steps = 20000,
+                                           burnin = 10000,
+                                           thinning_factor = 10,
+                                           mean_sdlog = 0.1,
+                                           cv_sdlog = 0.3,
+                                           cascade_sampling = TRUE)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(no_error) # no_error <- "294c4a35557ac045f4690a8cbf75a357"
-task_result(no_error)
+hipercow_bundle_result(no_error)
 # generate linelist: 
 # mean sdlog 0.1, cv sdlog 0.3: "20260520-190330-bf6af230"
 # mean sdlog 0.2, cv sdlog 0.3: "20260520-083537-61ac6dea"
 # sdlog 0.5: "20260519-155727-e407f51e"
 # new branch: "20260505-114158-3c1befb2"
 
-no_error_no_missing <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "no_error_no_missing",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10,
-                                         mean_sdlog = 0.1,
-                                         cv_sdlog = 0.3,
-                                         cascade_sampling = TRUE)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+no_error_no_missing <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "no_error_no_missing",
+                                           dataset = dataset,
+                                           n_steps = 20000,
+                                           burnin = 10000,
+                                           thinning_factor = 10,
+                                           mean_sdlog = 0.1,
+                                           cv_sdlog = 0.3,
+                                           cascade_sampling = TRUE)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(no_error_no_missing) # no_error_no_missing <- "b761fdeb25a7e25d1b5edbaa521a1e84"
-task_result(no_error_no_missing)
+hipercow_bundle_result(no_error_no_missing)
 # generate linelist: 
 # mean sdlog 0.1, cv sdlog 0.3: "20260520-190345-9545b9ab"
 # mean sdlog 0.2, cv sdlog 0.3: "20260520-083627-51f1e6ee"
