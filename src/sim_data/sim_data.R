@@ -3,38 +3,38 @@
 # TO DO: set up lognormal_delays, weibull_delays and other error model scenarios
 
 library(orderly)
-library(datefixer)
-library(parallel)
+library(chronofix)
 
 ## Number of data sets to simulate for each scenario
 pars <- orderly_parameters(nsims = NULL)
 orderly_dependency("sim_params", "latest", files = "sim_params.rds")
-orderly_artefact(description = "Simulated Data", files = "sim_data.rds")
+
+dir.create("outputs")
 
 # Load all simulation parameters
 all_params <- readRDS("sim_params.rds")
 
+set.seed(1)
+
 # Simulate
-simulate_scenario <- function(sim_params, nsims) {
+
+for (scenario in names(all_params)) {
   
-  cl <- parallel::getDefaultCluster()
-  parallel::clusterExport(cl, 
-                          varlist = c("sim_params"),
-                          envir = environment())
-  parallel::clusterEvalQ(cl, library(datefixer))
+  sim_params <- all_params[[scenario]]
   
-  parallel::parLapply(cl, seq_len(nsims), function(i) {
-    simulate_data(
+  for (i in seq_len(pars$nsims)) {
+    filename <- paste0("outputs/sim_data", "_", scenario, "_", i, ".rds")
+    
+    orderly_artefact(description = "Simulated Data", 
+                     files = filename)
+    
+    res <- chronofix_simulate_data(
       sim_params$n_per_group,
       sim_params$group_names,
       sim_params$delay_info,
       sim_params$error_params,
       sim_params$date_range
     )
-  })
+    saveRDS(res, filename)
+  }
 }
-
-# Named list of simulated data
-sim_data_all <- lapply(all_params, simulate_scenario, nsims = nsims)
-
-saveRDS(sim_data_all, "sim_data.rds")
