@@ -48,7 +48,12 @@ control <- chronofix_mcmc_control(n_steps = iterations,
                                   latest_possible_date = "2015-01-01",
                                   cascade_sampling = cascade_sampling)
 sampler <- chronofix_sampler(control)
-hyperparameters <- chronofix_hyperparameters()
+hyperparameters <- chronofix_hyperparameters(
+  gamma_shape_prior_shape = 1,
+  gamma_shape_prior_rate = 0.1,
+  gamma_mean_prior_shape = 2,
+  gamma_mean_prior_scale = 10
+)
 
 # Run MCMC -------------------------------------------------------------------
 mcmc_all <- list()
@@ -95,15 +100,13 @@ for (scenario in scenario_list) {
     rownames(res$initial) <- nms
     rownames(res$pars) <- nms
     rownames(res$full_chains$initial) <- nms
-    rownames(res$full_chains$par) <- nms
+    rownames(res$full_chains$pars) <- nms
     
     p <- tempfile(pattern = "mcmc_", tmpdir = out_dir, fileext = ".rds")
     saveRDS(res, p)
     p
   })
   paths <- unlist(paths)
-  
-  saveRDS(1, "one.rds")
   
   mcmc_samples <- lapply(paths, readRDS)
   names(mcmc_samples) <- names(sim_data_list)
