@@ -13,8 +13,7 @@ library(monty)
 options(future.globals.maxSize = Inf)
 
 pars <- orderly_parameters(scenario = NULL, n_steps = NULL, burnin = NULL,
-                           thinning_factor = NULL, mean_sdlog = NULL,
-                           cv_sdlog = NULL, cascade_sampling = NULL)
+                           thinning_factor = NULL, cascade_sampling = NULL)
 
 nsims <- 100
 
@@ -22,8 +21,6 @@ scenario <- scenario
 n_steps <- n_steps
 burnin <- burnin
 thinning_factor <- thinning_factor
-mean_sdlog <- mean_sdlog
-cv_sdlog <- cv_sdlog
 cascade_sampling <- cascade_sampling
 
 orderly_dependency("sim_params", "latest", "sim_params.rds")
@@ -36,8 +33,6 @@ for (i in seq_len(nsims)) {
                                     parameter:n_steps == this:n_steps &&
                                     parameter:burnin == this:burnin &&
                                     parameter:thinning_factor == this:thinning_factor &&
-                                    parameter:mean_sdlog == this:mean_sdlog &&
-                                    parameter:cv_sdlog == this:cv_sdlog &&
                                     parameter:cascade_sampling == this:cascade_sampling)),
                      c("inputs/data/sim_data_${i}.rds" = "sim_data.rds",
                        "inputs/samples/sim_estim_${i}.rds" = "sim_estim.rds"))

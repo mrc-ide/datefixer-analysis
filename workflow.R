@@ -56,8 +56,6 @@ baseline <-
                                            n_steps = 20000,
                                            burnin = 10000,
                                            thinning_factor = 10,
-                                           mean_sdlog = 0.1,
-                                           cv_sdlog = 0.3,
                                            cascade_sampling = TRUE)),
     data.frame(dataset = seq_len(100)),
     resources = hipercow::hipercow_resources(cores = 4))
@@ -77,8 +75,6 @@ no_missing <-
                                            n_steps = 20000,
                                            burnin = 10000,
                                            thinning_factor = 10,
-                                           mean_sdlog = 0.1,
-                                           cv_sdlog = 0.3,
                                            cascade_sampling = TRUE)),
     data.frame(dataset = seq_len(100)),
     resources = hipercow::hipercow_resources(cores = 4))
@@ -98,8 +94,6 @@ no_error <-
                                            n_steps = 20000,
                                            burnin = 10000,
                                            thinning_factor = 10,
-                                           mean_sdlog = 0.1,
-                                           cv_sdlog = 0.3,
                                            cascade_sampling = TRUE)),
     data.frame(dataset = seq_len(100)),
     resources = hipercow::hipercow_resources(cores = 4))
@@ -119,8 +113,6 @@ no_error_no_missing <-
                                            n_steps = 20000,
                                            burnin = 10000,
                                            thinning_factor = 10,
-                                           mean_sdlog = 0.1,
-                                           cv_sdlog = 0.3,
                                            cascade_sampling = TRUE)),
     data.frame(dataset = seq_len(100)),
     resources = hipercow::hipercow_resources(cores = 4))
@@ -301,6 +293,7 @@ baseline_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      mean_sdlog = 0.1, cv_sdlog = 0.3, cascade_sampling = TRUE,
                       scenario = "baseline")),
   resources = resources
 )
@@ -316,6 +309,7 @@ no_error_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      mean_sdlog = 0.1, cv_sdlog = 0.3, cascade_sampling = TRUE,
                       scenario = "no_error")),
   resources = resources
 )
@@ -331,6 +325,7 @@ no_missing_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      mean_sdlog = 0.1, cv_sdlog = 0.3, cascade_sampling = TRUE,
                       scenario = "no_missing")),
   resources = resources
 )
@@ -346,6 +341,7 @@ no_error_no_missing_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
     parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
+                      mean_sdlog = 0.1, cv_sdlog = 0.3, cascade_sampling = TRUE,
                       scenario = "no_error_no_missing")),
   resources = resources
 )
