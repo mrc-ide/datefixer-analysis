@@ -1,0 +1,7 @@
+# ---VVV--- added by orderly ---VVV----------------
+# Don't manually edit content between these markers
+date_params.rds
+scenarios.rds
+sim_estim.rds
+# ---^^^--- added by orderly ---^^^----------------
+sim_data.rds

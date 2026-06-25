@@ -13,7 +13,9 @@ burn <- pars$burnin
 thin <- pars$thinning_factor
 cascade_sampling <- pars$cascade_sampling
 
-orderly_dependency("sim_params", "latest", "sim_params.rds")
+orderly_dependency("sim_params", "latest", 
+                   c("date_params.rds",
+                     "scenarios.rds"))
 data_filename <- paste0("outputs/sim_data_", scenario, "_", dataset, ".rds")
 orderly_dependency("sim_data", "latest", 
                    c("sim_data.rds" = data_filename))
@@ -25,7 +27,8 @@ orderly_artefact(description = "MCMC outputs for simulation scenarios",
 
 # Read in dependencies --------------------------------------------------------
 
-sim_params <- readRDS("sim_params.rds")
+date_params <- readRDS("date_params.rds")
+scenarios <- readRDS("scenarios.rds")
 sim_data <- readRDS("sim_data.rds")
 
 # MCMC settings ---------------------------------------------------------------
@@ -49,8 +52,8 @@ hyperparameters <- chronofix_hyperparameters(
 
 # Run MCMC -------------------------------------------------------------------
 
-sim_param <- sim_params[[scenario]]
-delay_info <- sim_param$delay_info
+date_model <- scenarios[[scenario]]$date_model
+delay_info <- date_params[[date_model]]$delay_info
 
 model <- chronofix_model(sim_data$observed_data, delay_info,
                          hyperparameters, control)
