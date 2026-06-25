@@ -1,14 +1,21 @@
 # Function to create sim_params for all scenarios
 
-build_date_params <- function(
-    date_model,
+build_sim_params <- function(
+    scenario_id,
     n_per_group = rep(100, 4),
     group_names = c("community-alive", "community-dead",
                     "hospitalised-alive", "hospitalised-dead"),
     mean_scale = 1,
     cv_scale = 1,
-    delay_distribution = "gamma"
+    delay_distribution = "gamma",
+    prop_missing_data = 0.2,
+    prob_error = 0.05,
+    error_model = "naive"
 ) {
+  
+  error_params <- list(prop_missing_data = prop_missing_data,
+                       prob_error = prob_error,
+                       error_model = error_model)
   
   date_range <- as.integer(as.Date(c("2014-01-01", "2015-01-01")))
   
@@ -29,10 +36,11 @@ build_date_params <- function(
   delay_info$cv <- delay_info$cv * cv_scale
   
   list(
-    date_model = date_model,
+    scenario_id = scenario_id,
     n_per_group = n_per_group,
     group_names = group_names,
     delay_info = delay_info,
+    error_params = error_params,
     date_range = date_range
   )
 }
