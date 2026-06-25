@@ -3,38 +3,45 @@
 # TO DO: set up lognormal_delays, weibull_delays and other error model scenarios
 
 library(orderly)
-library(datefixer)
-library(parallel)
+library(chronofix)
 
 ## Number of data sets to simulate for each scenario
 pars <- orderly_parameters(nsims = NULL)
-orderly_dependency("sim_params", "latest", files = "sim_params.rds")
-orderly_artefact(description = "Simulated Data", files = "sim_data.rds")
+orderly_dependency("sim_params", "latest", 
+                   files = c("date_params.rds",
+                             "error_params.rds",
+                             "scenarios.rds"))
+
+orderly_resource("support.R")
+source("support.R")
+
+dir.create("outputs")
 
 # Load all simulation parameters
-all_params <- readRDS("sim_params.rds")
+date_params <- readRDS("date_params.rds")
+error_params <- readRDS("error_params.rds")
+scenarios <- readRDS("scenarios.rds")
 
-# Simulate
-simulate_scenario <- function(sim_params, nsims) {
+set.seed(1)
+
+# Simulate true data
+
+true_data <- lapply(date_params, simulate_true_data, nsims = pars$nsims)
+
+for (nm_scenario in names(scenarios)) {
   
-  cl <- parallel::getDefaultCluster()
-  parallel::clusterExport(cl, 
-                          varlist = c("sim_params"),
-                          envir = environment())
-  parallel::clusterEvalQ(cl, library(datefixer))
-  
-  parallel::parLapply(cl, seq_len(nsims), function(i) {
-    simulate_data(
-      sim_params$n_per_group,
-      sim_params$group_names,
-      sim_params$delay_info,
-      sim_params$error_params,
-      sim_params$date_range
+  for (i in seq_len(pars$nsims)) {
+    filename <- paste0("outputs/sim_data", "_", nm_scenario, "_", i, ".rds")
+    orderly_artefact(description = "Simulated Data", 
+                     files = filename)
+    
+    scenario <- scenarios[[nm_scenario]]
+    
+    res <- chronofix_simulate_observation_errors(
+      true_data[[scenario$date_model]][[i]],
+      error_params[[scenario$error_model]],
+      date_params[[scenario$date_model]]$date_range
     )
-  })
+    saveRDS(res, filename)
+  }
 }
-
-# Named list of simulated data
-sim_data_all <- lapply(all_params, simulate_scenario, nsims = nsims)
-
-saveRDS(sim_data_all, "sim_data.rds")
