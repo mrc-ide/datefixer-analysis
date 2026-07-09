@@ -26,7 +26,10 @@ mean_sdlog <- mean_sdlog
 cv_sdlog <- cv_sdlog
 cascade_sampling <- cascade_sampling
 
-orderly_dependency("sim_params", "latest", "sim_params.rds")
+orderly_dependency("sim_params", "latest", 
+                   c("date_params.rds",
+                     "error_params.rds",
+                     "scenarios.rds"))
 
 
 for (i in seq_len(nsims)) {
@@ -96,7 +99,9 @@ if (!is.null(cl)) {
 }
 
 # Read in dependencies -------------------------------------------------------
-sim_params <- readRDS("sim_params.rds")
+date_params <- readRDS("date_params.rds")
+error_params <- readRDS("error_params.rds")
+scenarios <- readRDS("scenarios.rds")
 
 # Delay mapping --------------------------------------------------------------
 delay_mapping <- tribble(
@@ -150,7 +155,11 @@ apply_scenario_labels <- function(df) {
 }
 
 # Extract true parameter values for this scenario ----------------------------
-params <- sim_params[[scenario]]
+date_model <- scenarios[[scenario]]$date_model
+error_model <- scenarios[[scenario]]$error_model
+
+params <- c(date_params[[date_model]],
+            error_params = error_params[[error_model]])
 true_params <- tibble(
   param_idx = 1:nrow(params$delay_info),
   true_mean = params$delay_info$mean,
