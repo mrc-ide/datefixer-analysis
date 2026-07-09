@@ -1,0 +1,26 @@
+# Repos
+repo::https://mrc-ide.r-universe.dev
+
+# Specific package versions
+mrc-ide/monty@mrc-6769
+mrc-ide/chronofix@generate_linelist
+
+# CRAN
+orderly
+parallel
+tibble
+dplyr
+tidyr
+purrr
+patchwork
+ggplot2
+glue
+posterior
+stringr
+scales
+ggrastr
+png
+furrr
+future
+forcats
+globals
