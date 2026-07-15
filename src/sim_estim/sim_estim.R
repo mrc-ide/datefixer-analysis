@@ -1,6 +1,11 @@
 library(orderly)
 library(chronofix)
 
+orderly_shared_resource("util.R")
+source("util.R")
+
+version_check("chronofix", "0.0.4")
+
 pars <- orderly_parameters(scenario = "baseline", dataset = 1,
                            n_steps = 20000, burnin = 10000,
                            thinning_factor = 10, cascade_sampling = TRUE)

@@ -15,6 +15,11 @@ orderly_dependency("sim_params", "latest",
 orderly_resource("support.R")
 source("support.R")
 
+orderly_shared_resource("util.R")
+source("util.R")
+
+version_check("chronofix", "0.0.4")
+
 dir.create("outputs")
 
 # Load all simulation parameters

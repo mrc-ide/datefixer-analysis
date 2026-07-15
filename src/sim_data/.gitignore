@@ -5,3 +5,4 @@ error_params.rds
 scenarios.rds
 # ---^^^--- added by orderly ---^^^----------------
 outputs
+util.R
