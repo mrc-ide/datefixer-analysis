@@ -9,15 +9,11 @@ library(stringr)
 library(ggrastr)
 library(forcats)
 
-pars <- orderly_parameters(n_steps = NULL, burnin = NULL,
-                           thinning_factor = NULL, scenarios = NULL,
-                           cascade_sampling = NULL)
+pars <- orderly_parameters(scenarios = NULL)
 
-n_steps <- n_steps
-burnin <- burnin
-thinning_factor <- thinning_factor
+n_steps <- 10000
+burnin <- 5000
 scenarios <- strsplit(scenarios, ",")[[1]]
-cascade_sampling <- cascade_sampling
 
 # Loop through scenarios and fetch the individual summaries
 for (s in scenarios) {
@@ -41,11 +37,7 @@ for (s in scenarios) {
   
   orderly_dependency(
     "estim_summary", 
-    "latest(parameter:scenario == environment:s &&
-    parameter:n_steps == environment:n_steps &&
-    parameter:burnin == environment:burnin &&
-    parameter:thinning_factor == environment:thinning_factor &&
-    parameter:cascade_sampling == environment:cascade_sampling)",
+    "latest(parameter:scenario == environment:s)",
     deps_mapping
   )
 }
