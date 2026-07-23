@@ -52,11 +52,7 @@ baseline <-
   hipercow::task_create_bulk_expr(
     orderly::orderly_run("sim_estim",
                          parameters = list(scenario = "baseline",
-                                           dataset = dataset,
-                                           n_steps = 20000,
-                                           burnin = 10000,
-                                           thinning_factor = 10,
-                                           cascade_sampling = TRUE)),
+                                           dataset = dataset)),
     data.frame(dataset = seq_len(100)),
     resources = hipercow::hipercow_resources(cores = 4))
 
@@ -71,11 +67,7 @@ no_missing <-
   hipercow::task_create_bulk_expr(
     orderly::orderly_run("sim_estim",
                          parameters = list(scenario = "no_missing",
-                                           dataset = dataset,
-                                           n_steps = 20000,
-                                           burnin = 10000,
-                                           thinning_factor = 10,
-                                           cascade_sampling = TRUE)),
+                                           dataset = dataset)),
     data.frame(dataset = seq_len(100)),
     resources = hipercow::hipercow_resources(cores = 4))
 
@@ -90,11 +82,7 @@ no_error <-
   hipercow::task_create_bulk_expr(
     orderly::orderly_run("sim_estim",
                          parameters = list(scenario = "no_error",
-                                           dataset = dataset,
-                                           n_steps = 20000,
-                                           burnin = 10000,
-                                           thinning_factor = 10,
-                                           cascade_sampling = TRUE)),
+                                           dataset = dataset)),
     data.frame(dataset = seq_len(100)),
     resources = hipercow::hipercow_resources(cores = 4))
 
@@ -109,11 +97,7 @@ no_error_no_missing <-
   hipercow::task_create_bulk_expr(
     orderly::orderly_run("sim_estim",
                          parameters = list(scenario = "no_error_no_missing",
-                                           dataset = dataset,
-                                           n_steps = 20000,
-                                           burnin = 10000,
-                                           thinning_factor = 10,
-                                           cascade_sampling = TRUE)),
+                                           dataset = dataset)),
     data.frame(dataset = seq_len(100)),
     resources = hipercow::hipercow_resources(cores = 4))
 
@@ -124,164 +108,136 @@ hipercow_bundle_result(no_error_no_missing)
 # sdlog 0.5: "20260519-155843-78fea145"
 # new branch: "20260505-114212-a3abdcfa"
 
-low_missingness <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "low_missingness",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+low_missingness <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "low_missingness",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(low_missingness) #low_missingness <- "fa76343314f1e0dd01f151eba43a4cee"
-task_result(low_missingness)
+hipercow_bundle_result(low_missingness)
 # new branch: "20260505-114223-97d2e641"
 
-low_error <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "low_error",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+low_error <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "low_error",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(low_error) #low_error <- "ebb67455bebe9527186782ab23103fa3"
-task_result(low_error) # "20260505-114237-f42708b1"
+hipercow_bundle_result(low_error)
 
-high_error <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "high_error",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+high_error <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "high_error",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(high_error) #high_error <- "8082920eb1e84f51a0bb4fd95c572320"
-task_result(high_error) # "20260505-114251-30e28beb"
+hipercow_bundle_result(high_error)
 
 ## sample sizes
 
-very_small_sample <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "very_small_sample",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+very_small_sample <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "very_small_sample",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(very_small_sample) #very_small_sample <- "b7fec47abdbf00f68e6aefe1eabeaf7b"
-task_result(very_small_sample) # "20260505-114302-58690ada"
+hipercow_bundle_result(very_small_sample)
 
-small_sample <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "small_sample",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
 
-task_info(small_sample) #small_sample <- "bb25a562d95f8a6192e0ed7f74b0bc2e"
-task_result(small_sample) # "20260505-114313-96017c02"
+small_sample <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "small_sample",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-moderate_sample <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "moderate_sample",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+hipercow_bundle_result(small_sample)
 
-task_info(moderate_sample) #moderate_sample <- "5029df308b012684bd0fcc9a5e8c4e50"
-task_result(moderate_sample) # "20260505-114326-62ab173d"
 
-very_large_sample <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "very_large_sample",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+moderate_sample <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "moderate_sample",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(very_large_sample) #very_large_sample <- ""
-task_result(very_large_sample) # 
+hipercow_bundle_result(moderate_sample)
 
-long_delays <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "long_delays",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
 
-task_info(long_delays) #long_delays <- "e96b1eb2ce937014218692d008c3d7b1"
-task_result(long_delays) # "20260505-114357-42f89ae9"
+very_large_sample <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "very_large_sample",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-short_delays <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "short_delays",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+hipercow_bundle_result(very_large_sample)
 
-task_info(short_delays) #short_delays <- "c1e24a93d9cdbc80c6037e894b3de96a"
-task_result(short_delays) # "20260505-114407-670d7f67"
 
-high_variability <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "high_variability",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+long_delays <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "long_delays",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-task_info(high_variability) #high_variability <- "51d9282416599410b4543073f904d6df"
-task_result(high_variability) # 
+hipercow_bundle_result(long_delays)
 
-low_variability <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "low_variability",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
 
-task_info(low_variability) #low_variability <- "9548bcabde91dba4820624b0d96fa330"
-task_result(low_variability) # "20260505-114416-ca96249b"
+short_delays <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "short_delays",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
 
-lognormal_delays <- task_create_expr(
-  orderly::orderly_run("sim_estim",
-                       parameters = list(scenario = "lognormal_delays",
-                                         n_steps = 20000,
-                                         burnin = 10000,
-                                         thinning_factor = 10)),
-  parallel = hipercow_parallel("parallel"),
-  resources = resources
-)
+hipercow_bundle_result(short_delays)
 
-task_info(lognormal_delays) #lognormal_delays <- "b723db9288eb6d75bdeb4acd283804a4"
-task_result(lognormal_delays) # "20260505-114444-de3b6e3f"
+
+high_variability <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "high_variability",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
+
+hipercow_bundle_result(high_variability)
+
+
+low_variability <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "low_variability",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
+
+hipercow_bundle_result(low_variability)
+
+
+lognormal_delays <- 
+  hipercow::task_create_bulk_expr(
+    orderly::orderly_run("sim_estim",
+                         parameters = list(scenario = "lognormal_delays",
+                                           dataset = dataset)),
+    data.frame(dataset = seq_len(100)),
+    resources = hipercow::hipercow_resources(cores = 4))
+
+hipercow_bundle_result(lognormal_delays)
 
 
 # Summarise ------------------------------------------------------------------
@@ -292,9 +248,7 @@ resources <- hipercow_resources(cores = 32)
 baseline_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      cascade_sampling = TRUE,
-                      scenario = "baseline")),
+    parameters = list(scenario = "baseline")),
   resources = resources
 )
 
@@ -308,9 +262,7 @@ task_result(baseline_summarise)
 no_error_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      cascade_sampling = TRUE,
-                      scenario = "no_error")),
+    parameters = list(scenario = "no_error")),
   resources = resources
 )
 
@@ -324,9 +276,7 @@ task_result(no_error_summarise)
 no_missing_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      cascade_sampling = TRUE,
-                      scenario = "no_missing")),
+    parameters = list(scenario = "no_missing")),
   resources = resources
 )
 
@@ -340,9 +290,7 @@ task_result(no_missing_summarise)
 no_error_no_missing_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      cascade_sampling = TRUE,
-                      scenario = "no_error_no_missing")),
+    parameters = list(scenario = "no_error_no_missing")),
   resources = resources
 )
 
@@ -356,8 +304,7 @@ task_result(no_error_no_missing_summarise)
 low_error_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "low_error")),
+    parameters = list(scenario = "low_error")),
   resources = resources
 )
 
@@ -368,8 +315,7 @@ task_result(low_error_summarise)
 high_error_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "high_error")),
+    parameters = list(scenario = "high_error")),
   resources = resources
 )
 
@@ -380,26 +326,27 @@ task_result(high_error_summarise)
 low_missingness_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "low_missingness")),
+    parameters = list(scenario = "low_missingness")),
   resources = resources
 )
+
+task_result(low_missingness_summarise)
 
 # "20260515-085253-49d1730b"
 very_small_sample_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "very_small_sample")),
+    parameters = list(scenario = "very_small_sample")),
   resources = resources
 )
+
+task_result(very_small_sample_summarise)
 
 # "20260515-085547-4ed20fb5"
 small_sample_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "small_sample")),
+    parameters = list(scenario = "small_sample")),
   resources = resources
 )
 
@@ -407,8 +354,7 @@ small_sample_summarise <- task_create_expr(
 moderate_sample_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "moderate_sample")),
+    parameters = list(scenario = "moderate_sample")),
   resources = resources
 )
 
@@ -416,8 +362,7 @@ moderate_sample_summarise <- task_create_expr(
 very_large_sample_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "very_large_sample")),
+    parameters = list(scenario = "very_large_sample")),
   resources = resources
 )
 
@@ -425,8 +370,7 @@ very_large_sample_summarise <- task_create_expr(
 long_delays_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "long_delays")),
+    parameters = list(scenario = "long_delays")),
   resources = resources
 )
 
@@ -434,8 +378,7 @@ long_delays_summarise <- task_create_expr(
 short_delays_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "short_delays")),
+    parameters = list(scenario = "short_delays")),
   resources = resources
 )
 
@@ -443,8 +386,7 @@ short_delays_summarise <- task_create_expr(
 high_variability_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "high_variability")),
+    parameters = list(scenario = "high_variability")),
   resources = resources
 )
 
@@ -452,8 +394,7 @@ high_variability_summarise <- task_create_expr(
 low_variability_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "low_variability")),
+    parameters = list(scenario = "low_variability")),
   resources = resources
 )
 
@@ -461,8 +402,7 @@ low_variability_summarise <- task_create_expr(
 lognormal_delays_summarise <- task_create_expr(
   orderly::orderly_run(
     "estim_summary",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenario = "lognormal_delays")),
+    parameters = list(scenario = "lognormal_delays")),
   resources = resources
 )
 
@@ -475,9 +415,7 @@ resources <- hipercow_resources(cores = 1)
 sanity <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      cascade_sampling = TRUE,
-                      scenarios = "baseline,no_error,no_missing,no_error_no_missing")),
+    parameters = list(scenarios = "baseline,no_error,no_missing,no_error_no_missing")),
   resources = resources
 )
 
@@ -494,8 +432,7 @@ resources <- hipercow_resources(cores = 1)
 variable_error <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = "baseline,low_error,high_error")),
+    parameters = list(scenarios = "baseline,low_error,high_error")),
   resources = resources
 )
 
@@ -508,8 +445,7 @@ resources <- hipercow_resources(cores = 1)
 variable_sample <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = "baseline,very_small_sample,small_sample,moderate_sample")),#,very_large_sample")),
+    parameters = list(scenarios = "baseline,very_small_sample,small_sample,moderate_sample,very_large_sample")),
   resources = resources
 )
 
@@ -523,8 +459,7 @@ resources <- hipercow_resources(cores = 1)
 variable_delays <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = "baseline,long_delays,short_delays")),
+    parameters = list(scenarios = "baseline,long_delays,short_delays")),
   resources = resources
 )
 
@@ -537,8 +472,7 @@ resources <- hipercow_resources(cores = 1)
 variable_cv <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = c("baseline,high_variability,low_variability"))),
+    parameters = list(scenarios = c("baseline,high_variability,low_variability"))),
   resources = resources
 )
 
@@ -552,8 +486,7 @@ resources <- hipercow_resources(cores = 1)
 variable_distr <- task_create_expr(
   orderly::orderly_run(
     "estim_diagnostics",
-    parameters = list(n_steps = 20000, burnin = 10000, thinning_factor = 10,
-                      scenarios = c("baseline,lognormal_delays"))),
+    parameters = list(scenarios = c("baseline,lognormal_delays"))),
   resources = resources
 )
 
